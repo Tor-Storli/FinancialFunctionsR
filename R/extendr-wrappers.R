@@ -4,181 +4,222 @@
 #' @useDynLib FinancialFunctions
 NULL
 
-# ── Annuity functions ─────────────────────────────────────────────────────────
-
+#' Future Value
 #' @export
 fv <- function(rate, nper, pmt, pv, pmt_at_beginning) .Call("wrap__fv", rate, nper, pmt, pv, pmt_at_beginning)
 
+#' Present Value
 #' @export
 pv <- function(rate, nper, pmt, fv, pmt_at_beginning) .Call("wrap__pv", rate, nper, pmt, fv, pmt_at_beginning)
 
+#' Periodic Payment
 #' @export
 pmt <- function(rate, nper, pv, fv, pmt_at_beginning) .Call("wrap__pmt", rate, nper, pv, fv, pmt_at_beginning)
 
+#' Interest Portion of Payment
 #' @export
 ipmt <- function(rate, per, nper, pv, fv, pmt_at_beginning) .Call("wrap__ipmt", rate, per, nper, pv, fv, pmt_at_beginning)
 
+#' Principal Portion of Payment
 #' @export
 ppmt <- function(rate, per, nper, pv, fv, pmt_at_beginning) .Call("wrap__ppmt", rate, per, nper, pv, fv, pmt_at_beginning)
 
+#' Cumulative Interest Paid
 #' @export
 cumipmt <- function(rate, nper, pv, start_period, end_period, pmt_at_beginning) .Call("wrap__cumipmt", rate, nper, pv, start_period, end_period, pmt_at_beginning)
 
+#' Cumulative Principal Paid
 #' @export
 cumprinc <- function(rate, nper, pv, start_period, end_period, pmt_at_beginning) .Call("wrap__cumprinc", rate, nper, pv, start_period, end_period, pmt_at_beginning)
 
+#' Number of Periods
 #' @export
 nper <- function(rate, pmt, pv, fv, pmt_at_beginning) .Call("wrap__nper", rate, pmt, pv, fv, pmt_at_beginning)
 
+#' Periodic Interest Rate
 #' @export
 rate <- function(nper, pmt, pv, fv, pmt_at_beginning, guess) .Call("wrap__rate", nper, pmt, pv, fv, pmt_at_beginning, guess)
 
+#' Interest Paid on Straight-Line Loan
 #' @export
 ispmt <- function(rate, per, nper, pv) .Call("wrap__ispmt", rate, per, nper, pv)
 
-# ── Cash flow functions ───────────────────────────────────────────────────────
-
+#' Net Present Value
 #' @export
 npv <- function(rate, values) .Call("wrap__npv", rate, values)
 
+#' Internal Rate of Return
 #' @export
 irr <- function(values) .Call("wrap__irr", values)
 
+#' Modified Internal Rate of Return
 #' @export
 mirr <- function(values, finance_rate, reinvest_rate) .Call("wrap__mirr", values, finance_rate, reinvest_rate)
 
+#' Net Present Value with Irregular Dates
 #' @export
 xnpv <- function(rate, values, dates) .Call("wrap__xnpv", rate, values, dates)
 
+#' Internal Rate of Return with Irregular Dates
 #' @export
 xirr <- function(values, dates) .Call("wrap__xirr", values, dates)
 
-# ── Depreciation functions ────────────────────────────────────────────────────
-
+#' Straight-Line Depreciation
 #' @export
 sln <- function(cost, salvage, life) .Call("wrap__sln", cost, salvage, life)
 
+#' Sum-of-Years-Digits Depreciation
 #' @export
 syd <- function(cost, salvage, life, per) .Call("wrap__syd", cost, salvage, life, per)
 
+#' Fixed-Declining Balance Depreciation
 #' @export
 db <- function(cost, salvage, life, per, month) .Call("wrap__db", cost, salvage, life, per, month)
 
+#' Double-Declining Balance Depreciation
 #' @export
 ddb <- function(cost, salvage, life, per, factor) .Call("wrap__ddb", cost, salvage, life, per, factor)
 
+#' Variable Declining Balance Depreciation
 #' @export
 vdb <- function(cost, salvage, life, start_period, end_period, factor, no_switch) .Call("wrap__vdb", cost, salvage, life, start_period, end_period, factor, no_switch)
 
+#' French Straight-Line Depreciation
 #' @export
 amorlinc <- function(cost, date_purchased, first_period, salvage, period, rate, basis) .Call("wrap__amorlinc", cost, date_purchased, first_period, salvage, period, rate, basis)
 
+#' French Degressive Depreciation
 #' @export
 amordegrc <- function(cost, date_purchased, first_period, salvage, period, rate, basis) .Call("wrap__amordegrc", cost, date_purchased, first_period, salvage, period, rate, basis)
 
-# ── Coupon date functions ─────────────────────────────────────────────────────
-
+#' Days from Coupon Start to Settlement
 #' @export
 coupdaybs <- function(settlement, maturity, frequency, basis) .Call("wrap__coupdaybs", settlement, maturity, frequency, basis)
 
+#' Days in Coupon Period
 #' @export
 coupdays <- function(settlement, maturity, frequency, basis) .Call("wrap__coupdays", settlement, maturity, frequency, basis)
 
+#' Days from Settlement to Next Coupon
 #' @export
 coupdaysnc <- function(settlement, maturity, frequency, basis) .Call("wrap__coupdaysnc", settlement, maturity, frequency, basis)
 
+#' Next Coupon Date
 #' @export
 coupncd <- function(settlement, maturity, frequency, basis) .Call("wrap__coupncd", settlement, maturity, frequency, basis)
 
+#' Previous Coupon Date
 #' @export
 couppcd <- function(settlement, maturity, frequency, basis) .Call("wrap__couppcd", settlement, maturity, frequency, basis)
 
+#' Number of Coupons Remaining
 #' @export
 coupnum <- function(settlement, maturity, frequency, basis) .Call("wrap__coupnum", settlement, maturity, frequency, basis)
 
-# ── Bond and security functions ───────────────────────────────────────────────
-
+#' Clean Bond Price
 #' @export
 price <- function(settlement, maturity, rate, yld, redemption, frequency, basis) .Call("wrap__price", settlement, maturity, rate, yld, redemption, frequency, basis)
 
+#' Price of Discounted Security
 #' @export
 pricedisc <- function(settlement, maturity, discount, redemption, basis) .Call("wrap__pricedisc", settlement, maturity, discount, redemption, basis)
 
+#' Price of Security Paying Interest at Maturity
 #' @export
 pricemat <- function(settlement, maturity, issue, rate, yld, basis) .Call("wrap__pricemat", settlement, maturity, issue, rate, yld, basis)
 
+#' Bond Yield
 #' @export
 yield_ <- function(settlement, maturity, rate, pr, redemption, frequency, basis) .Call("wrap__yield_", settlement, maturity, rate, pr, redemption, frequency, basis)
 
+#' Yield of Discounted Security
 #' @export
 yielddisc <- function(settlement, maturity, pr, redemption, basis) .Call("wrap__yielddisc", settlement, maturity, pr, redemption, basis)
 
+#' Yield of Security Paying Interest at Maturity
 #' @export
 yieldmat <- function(settlement, maturity, issue, rate, pr, basis) .Call("wrap__yieldmat", settlement, maturity, issue, rate, pr, basis)
 
+#' Discount Rate of a Security
 #' @export
 disc <- function(settlement, maturity, pr, redemption, basis) .Call("wrap__disc", settlement, maturity, pr, redemption, basis)
 
+#' Interest Rate for Fully Invested Security
 #' @export
 intrate <- function(settlement, maturity, investment, redemption, basis) .Call("wrap__intrate", settlement, maturity, investment, redemption, basis)
 
+#' Amount Received at Maturity
 #' @export
 received <- function(settlement, maturity, investment, discount, basis) .Call("wrap__received", settlement, maturity, investment, discount, basis)
 
+#' Macaulay Duration
 #' @export
 duration <- function(settlement, maturity, coupon, yld, frequency, basis) .Call("wrap__duration", settlement, maturity, coupon, yld, frequency, basis)
 
+#' Modified Duration
 #' @export
 mduration <- function(settlement, maturity, coupon, yld, frequency, basis) .Call("wrap__mduration", settlement, maturity, coupon, yld, frequency, basis)
 
+#' Accrued Interest for Periodic Coupon Security
 #' @export
 accrint <- function(issue, first_interest, settlement, rate, par, frequency, basis) .Call("wrap__accrint", issue, first_interest, settlement, rate, par, frequency, basis)
 
+#' Accrued Interest at Maturity
 #' @export
 accrintm <- function(issue, settlement, rate, par, basis) .Call("wrap__accrintm", issue, settlement, rate, par, basis)
 
+#' Price with Odd First Period
 #' @export
 oddfprice <- function(settlement, maturity, issue, first_coupon, rate, yld, redemption, frequency, basis) .Call("wrap__oddfprice", settlement, maturity, issue, first_coupon, rate, yld, redemption, frequency, basis)
 
+#' Yield with Odd First Period
 #' @export
 oddfyield <- function(settlement, maturity, issue, first_coupon, rate, pr, redemption, frequency, basis) .Call("wrap__oddfyield", settlement, maturity, issue, first_coupon, rate, pr, redemption, frequency, basis)
 
+#' Price with Odd Last Period
 #' @export
 oddlprice <- function(settlement, maturity, last_interest, rate, yld, redemption, frequency, basis) .Call("wrap__oddlprice", settlement, maturity, last_interest, rate, yld, redemption, frequency, basis)
 
+#' Yield with Odd Last Period
 #' @export
 oddlyield <- function(settlement, maturity, last_interest, rate, pr, redemption, frequency, basis) .Call("wrap__oddlyield", settlement, maturity, last_interest, rate, pr, redemption, frequency, basis)
 
-# ── Miscellaneous functions ───────────────────────────────────────────────────
-
+#' Effective Annual Interest Rate
 #' @export
 effect <- function(nominal_rate, npery) .Call("wrap__effect", nominal_rate, npery)
 
+#' Nominal Annual Interest Rate
 #' @export
 nominal <- function(effect_rate, npery) .Call("wrap__nominal", effect_rate, npery)
 
+#' Dollar Price in Decimal Notation
 #' @export
 dollarde <- function(fractional_dollar, fraction) .Call("wrap__dollarde", fractional_dollar, fraction)
 
+#' Dollar Price in Fractional Notation
 #' @export
 dollarfr <- function(decimal_dollar, fraction) .Call("wrap__dollarfr", decimal_dollar, fraction)
 
+#' Future Value with Variable Rate Schedule
 #' @export
 fvschedule <- function(principal, schedule) .Call("wrap__fvschedule", principal, schedule)
 
+#' Equivalent Interest Rate for Investment Growth
 #' @export
 rri <- function(nper, pv, fv) .Call("wrap__rri", nper, pv, fv)
 
+#' Number of Periods to Reach Target Value
 #' @export
 pduration <- function(rate, pv, fv) .Call("wrap__pduration", rate, pv, fv)
 
+#' Treasury Bill Price
 #' @export
 tbillprice <- function(settlement, maturity, discount) .Call("wrap__tbillprice", settlement, maturity, discount)
 
+#' Treasury Bill Yield
 #' @export
 tbillyield <- function(settlement, maturity, pr) .Call("wrap__tbillyield", settlement, maturity, pr)
 
+#' Treasury Bill Bond-Equivalent Yield
 #' @export
 tbilleq <- function(settlement, maturity, discount) .Call("wrap__tbilleq", settlement, maturity, discount)
-
-# nolint end

@@ -1,0 +1,108 @@
+url: https://tor-storli.github.io/FinancialFunctionsR/
+
+template:
+  bootstrap: 5
+  bootswatch: cosmo
+
+home:
+  title: "FinancialFunctions — Excel Financial Functions in R"
+  description: >
+    55 Excel-compatible financial functions powered by Rust.
+    High performance annuity, cash flow, depreciation, coupon,
+    bond, and miscellaneous financial calculations.
+
+navbar:
+  structure:
+    left:  [intro, reference, articles]
+    right: [github]
+  components:
+    intro:
+      text: "Get Started"
+      href: articles/FinancialFunctions.html
+    github:
+      icon: fab fa-github
+      href: https://github.com/Tor-Storli/FinancialFunctionsR
+
+reference:
+  - title: "💰 Annuity Functions"
+    desc: "Calculate loan payments, present/future values, and interest rates."
+    contents:
+      - fv
+      - pv
+      - pmt
+      - ipmt
+      - ppmt
+      - cumipmt
+      - cumprinc
+      - nper
+      - rate
+      - ispmt
+
+  - title: "📈 Cash Flow Functions"
+    desc: "Analyse investment returns using net present value and internal rate of return."
+    contents:
+      - npv
+      - irr
+      - mirr
+      - xnpv
+      - xirr
+
+  - title: "🏭 Depreciation Functions"
+    desc: "Calculate asset depreciation using various accounting methods."
+    contents:
+      - sln
+      - syd
+      - db
+      - ddb
+      - vdb
+      - amorlinc
+      - amordegrc
+
+  - title: "🗓️ Coupon Date Functions"
+    desc: "Calculate bond coupon dates and day counts."
+    contents:
+      - coupdaybs
+      - coupdays
+      - coupdaysnc
+      - coupncd
+      - couppcd
+      - coupnum
+
+  - title: "🏦 Bond & Security Functions"
+    desc: "Price and yield calculations for bonds and fixed-income securities."
+    contents:
+      - price
+      - pricedisc
+      - pricemat
+      - yield_
+      - yielddisc
+      - yieldmat
+      - disc
+      - intrate
+      - received
+      - duration
+      - mduration
+      - accrint
+      - accrintm
+      - oddfprice
+      - oddfyield
+      - oddlprice
+      - oddlyield
+
+  - title: "🔧 Miscellaneous Functions"
+    desc: "Additional financial utility functions."
+    contents:
+      - effect
+      - nominal
+      - dollarde
+      - dollarfr
+      - fvschedule
+      - rri
+      - pduration
+      - tbillprice
+      - tbillyield
+      - tbilleq
+
+  - title: "📦 Package"
+    contents:
+      - FinancialFunctions-package

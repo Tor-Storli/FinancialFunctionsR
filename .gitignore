@@ -4,3 +4,5 @@ src/Makevars
 src/Makevars.win
 "src/rust/target/" 
 .positai
+inst/doc
+docs

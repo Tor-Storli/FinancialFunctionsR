@@ -1,0 +1,385 @@
+---
+title: "Getting Started with FinancialFunctions"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with FinancialFunctions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  digits    = 4
+)
+library(FinancialFunctions)
+```
+
+## Overview
+
+**FinancialFunctions** provides 55 Excel-compatible financial functions implemented
+in Rust for high performance. All functions:
+
+- Match Excel output exactly
+- Return `NA` (never crash) on invalid input
+- Work on scalar values and inside `dplyr` pipelines
+
+```{r}
+library(FinancialFunctions)
+```
+
+---
+
+## 💰 Annuity Functions
+
+Annuity functions calculate the components of loan repayments and savings plans.
+
+### PMT — Periodic Payment
+
+What is the monthly payment on a mortgage?
+
+```{r}
+# $350,000 mortgage at 3.25% annual rate over 15 years
+pmt(rate = 0.0325/12, nper = 180, pv = 350000, fv = 0, pmt_at_beginning = FALSE)
+```
+
+### FV — Future Value
+
+How much will monthly savings of $500 grow to over 20 years at 6%?
+
+```{r}
+fv(rate = 0.06/12, nper = 240, pmt = -500, pv = 0, pmt_at_beginning = FALSE)
+```
+
+### PV — Present Value
+
+What is a pension worth today if it pays $2,000/month for 20 years at 5%?
+
+```{r}
+pv(rate = 0.05/12, nper = 240, pmt = 2000, fv = 0, pmt_at_beginning = FALSE)
+```
+
+### RATE — Interest Rate
+
+What annual rate is implied by a $350,000 loan with $2,459 monthly payments over 15 years?
+
+```{r}
+rate(nper = 180, pmt = -2459, pv = 350000, fv = 0,
+     pmt_at_beginning = FALSE, guess = 0.05) * 12
+```
+
+### NPER — Number of Periods
+
+How many months to pay off a $10,000 loan at 8% with $200 monthly payments?
+
+```{r}
+nper(rate = 0.08/12, pmt = -200, pv = 10000, fv = 0, pmt_at_beginning = FALSE)
+```
+
+### Loan Amortisation Table
+
+Build a full amortisation schedule using `ipmt` and `ppmt`:
+
+```{r}
+periods <- 1:12
+schedule <- data.frame(
+  Period    = periods,
+  Payment   = round(pmt(0.04/12, 360, 300000, 0, FALSE), 2),
+  Interest  = round(sapply(periods, function(p) ipmt(0.04/12, p, 360, 300000, 0, FALSE)), 2),
+  Principal = round(sapply(periods, function(p) ppmt(0.04/12, p, 360, 300000, 0, FALSE)), 2)
+)
+head(schedule, 6)
+```
+
+### Cumulative Interest and Principal
+
+How much interest is paid in the first year of a $300,000 mortgage at 4%?
+
+```{r}
+# Cumulative interest for periods 1 through 12
+cumipmt(rate = 0.04/12, nper = 360, pv = 300000,
+        start_period = 1, end_period = 12, pmt_at_beginning = FALSE)
+
+# Cumulative principal for the same period
+cumprinc(rate = 0.04/12, nper = 360, pv = 300000,
+         start_period = 1, end_period = 12, pmt_at_beginning = FALSE)
+```
+
+---
+
+## 📈 Cash Flow Functions
+
+### NPV — Net Present Value
+
+Is a $40,000 investment worth it given these projected cash flows at 8% discount?
+
+```{r}
+# Initial investment at time 0 + NPV of future flows
+npv(rate = 0.08, values = c(8000, 9200, 10000, 12000, 14500)) + (-40000)
+```
+
+A positive NPV means the investment creates value.
+
+### IRR — Internal Rate of Return
+
+What is the return on a 5-year project?
+
+```{r}
+irr(c(-70000, 12000, 15000, 18000, 21000, 26000))
+```
+
+```{r}
+# Convert to percentage
+irr(c(-70000, 12000, 15000, 18000, 21000, 26000)) * 100
+```
+
+### MIRR — Modified IRR
+
+MIRR uses separate rates for financing (cost of capital) and reinvestment:
+
+```{r}
+mirr(
+  values       = c(-120000, 39000, 30000, 21000, 37000, 46000),
+  finance_rate  = 0.10,
+  reinvest_rate = 0.12
+)
+```
+
+### XNPV and XIRR — Irregular Cash Flows
+
+When cash flows don't fall on regular intervals, use the date-based versions:
+
+```{r}
+values <- c(-10000, 2750, 4250, 3250, 2750)
+dates  <- c("2024-01-01", "2024-03-01", "2024-10-30", "2025-02-15", "2025-04-01")
+
+xnpv(rate = 0.09, values = values, dates = dates)
+```
+
+```{r}
+xirr(values = values, dates = dates)
+```
+
+---
+
+## 🏭 Depreciation Functions
+
+### SLN — Straight-Line Depreciation
+
+```{r}
+# $30,000 asset, $7,500 salvage value, 10-year life
+sln(cost = 30000, salvage = 7500, life = 10)
+```
+
+### DDB — Double-Declining Balance
+
+```{r}
+# Year 1 depreciation on a $2,400 asset with 10-year life
+ddb(cost = 2400, salvage = 300, life = 10, per = 1, factor = 2)
+```
+
+### Depreciation Schedule
+
+Compare methods over the full asset life:
+
+```{r}
+asset_life <- 1:10
+data.frame(
+  Year         = asset_life,
+  StraightLine = round(sln(30000, 7500, 10), 0),
+  SumOfYears   = round(sapply(asset_life, function(p) syd(30000, 7500, 10, p)), 0),
+  DeclBalance  = round(sapply(asset_life, function(p) ddb(30000, 7500, 10, p, 2)), 0)
+)
+```
+
+---
+
+## 🗓️ Coupon Date Functions
+
+These functions calculate dates and day counts for bond coupon periods.
+
+```{r}
+settle  <- "2024-01-25"
+mature  <- "2030-11-15"
+freq    <- 2        # semiannual
+basis   <- 1        # actual/actual
+
+# Days from last coupon to settlement
+coupdaybs(settle, mature, freq, basis)
+
+# Total days in coupon period
+coupdays(settle, mature, freq, basis)
+
+# Days from settlement to next coupon
+coupdaysnc(settle, mature, freq, basis)
+
+# Number of coupons remaining
+coupnum(settle, mature, freq, basis)
+```
+
+---
+
+## 🏦 Bond & Security Functions
+
+### PRICE — Clean Bond Price
+
+What is the clean price of a 5.75% coupon bond maturing in 2030?
+
+```{r}
+price(
+  settlement = "2024-02-15",
+  maturity   = "2030-11-15",
+  rate       = 0.0575,
+  yld        = 0.065,
+  redemption = 100,
+  frequency  = 2,
+  basis      = 0
+)
+```
+
+### YIELD — Bond Yield
+
+What yield does a bond with price 94.63 imply?
+
+```{r}
+yield_(
+  settlement = "2024-02-15",
+  maturity   = "2030-11-15",
+  rate       = 0.0575,
+  pr         = 94.63,
+  redemption = 100,
+  frequency  = 2,
+  basis      = 0
+)
+```
+
+### DURATION and MDURATION
+
+```{r}
+# Macaulay Duration
+duration(
+  settlement = "2024-01-01",
+  maturity   = "2032-01-01",
+  coupon     = 0.08,
+  yld        = 0.09,
+  frequency  = 2,
+  basis      = 1
+)
+
+# Modified Duration (price sensitivity to yield changes)
+mduration(
+  settlement = "2024-01-01",
+  maturity   = "2032-01-01",
+  coupon     = 0.08,
+  yld        = 0.09,
+  frequency  = 2,
+  basis      = 1
+)
+```
+
+### Treasury Bills
+
+```{r}
+# T-bill price
+tbillprice(settlement = "2024-03-31", maturity = "2024-06-01", discount = 0.09)
+
+# T-bill yield
+tbillyield(settlement = "2024-03-31", maturity = "2024-06-01", pr = 98.45)
+
+# Bond-equivalent yield
+tbilleq(settlement = "2024-03-31", maturity = "2024-06-01", discount = 0.0914)
+```
+
+---
+
+## 🔧 Miscellaneous Functions
+
+### EFFECT and NOMINAL — Effective vs Nominal Rates
+
+```{r}
+# Effective annual rate from 5.25% nominal compounded quarterly
+effect(nominal_rate = 0.0525, npery = 4)
+
+# Nominal rate that gives 5.3543% effective when compounded quarterly
+nominal(effect_rate = 0.053543, npery = 4)
+```
+
+### DOLLARDE and DOLLARFR — Fractional Price Notation
+
+US Treasury prices are quoted in 32nds. Convert to and from decimal:
+
+```{r}
+# 101 + 2/32 = 101.0625
+dollarde(fractional_dollar = 101.02, fraction = 32)
+
+# 101.0625 back to fractional notation
+dollarfr(decimal_dollar = 101.0625, fraction = 32)
+```
+
+### FVSCHEDULE — Variable Rate Schedule
+
+How does $10,000 grow over 3 years with different rates each year?
+
+```{r}
+fvschedule(principal = 10000, schedule = c(0.05, 0.04, 0.06))
+```
+
+### RRI — Equivalent Growth Rate
+
+What annual rate would grow $10,000 to $15,000 over 8 years?
+
+```{r}
+rri(nper = 8, pv = 10000, fv = 15000)
+```
+
+---
+
+## Using with dplyr
+
+All functions are vectorised and work naturally in `mutate()`:
+
+```{r eval=FALSE}
+library(dplyr)
+
+loans <- data.frame(
+  borrower = c("Alice", "Bob", "Carol"),
+  amount   = c(250000, 180000, 320000),
+  rate_pa  = c(0.035, 0.042, 0.038),
+  years    = c(20, 15, 25)
+)
+
+loans |>
+  mutate(
+    monthly_payment = round(pmt(rate_pa/12, years*12, amount, 0, FALSE), 2),
+    total_cost      = round(monthly_payment * years * 12, 0),
+    total_interest  = round(total_cost + amount, 0)
+  )
+```
+
+---
+
+## Key Differences from Excel
+
+| Excel | R | Note |
+|-------|---|------|
+| `PMT(rate, nper, pv)` | `pmt(rate, nper, pv, 0, FALSE)` | All args required in R |
+| `YIELD(...)` | `yield_(...)` | Trailing underscore avoids R keyword |
+| `IRR(A1:A6)` | `irr(c(-70000, 12000, ...))` | Pass R vector |
+| `XIRR(vals, dates)` | `xirr(vals, c("2024-01-01", ...))` | Dates as "YYYY-MM-DD" strings |
+| `#NUM!` | `NA` | Invalid input returns NA, not an error |
+
+---
+
+## Getting Help
+
+Each function has a help page with parameters and examples:
+
+```{r eval=FALSE}
+?pmt
+?irr
+?price
+```
+
+For the full function reference visit the
+[package website](https://tor-storli.github.io/FinancialFunctionsR/).
