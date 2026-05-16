@@ -5,6 +5,7 @@
 // copied from the DuckDB extension (annuity.rs, cash_flows.rs, etc.) — those
 // files are unchanged except that the `use duckdb::...` imports and the
 // VScalar structs are removed, leaving only the pure `pub fn calc_*` functions.
+#![allow(unused_imports, dead_code)]
 
 use extendr_api::prelude::*;
 use chrono::NaiveDate;
@@ -542,7 +543,7 @@ fn coupdaysnc(settlement: &str, maturity: &str, frequency: f64, basis: f64) -> f
 /// coupncd("2011-01-25", "2011-11-15", 2, 1)
 /// @export
 #[extendr]
-fn coupncd(settlement: &str, maturity: &str, frequency: f64, basis: f64) -> f64 {
+fn coupncd(settlement: &str, maturity: &str, frequency: f64, _basis: f64) -> f64 {
     match (parse_date_str(settlement), parse_date_str(maturity)) {
         (Some(s), Some(m)) if s < m => {
             let freq = helpers::freq_per_year(frequency as i32);
@@ -562,7 +563,7 @@ fn coupncd(settlement: &str, maturity: &str, frequency: f64, basis: f64) -> f64 
 /// couppcd("2011-01-25", "2011-11-15", 2, 1)
 /// @export
 #[extendr]
-fn couppcd(settlement: &str, maturity: &str, frequency: f64, basis: f64) -> f64 {
+fn couppcd(settlement: &str, maturity: &str, frequency: f64, _basis: f64) -> f64 {
     match (parse_date_str(settlement), parse_date_str(maturity)) {
         (Some(s), Some(m)) if s < m => {
             let freq = helpers::freq_per_year(frequency as i32);
@@ -582,7 +583,7 @@ fn couppcd(settlement: &str, maturity: &str, frequency: f64, basis: f64) -> f64 
 /// coupnum("2007-01-25", "2008-11-15", 2, 1)
 /// @export
 #[extendr]
-fn coupnum(settlement: &str, maturity: &str, frequency: f64, basis: f64) -> f64 {
+fn coupnum(settlement: &str, maturity: &str, frequency: f64, _basis: f64) -> f64 {
     match (parse_date_str(settlement), parse_date_str(maturity)) {
         (Some(s), Some(m)) if s < m => {
             let freq = helpers::freq_per_year(frequency as i32);
