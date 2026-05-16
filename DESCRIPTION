@@ -1,0 +1,31 @@
+Package: FinancialFunctions
+Title: Excel-Compatible Financial Functions Powered by Rust
+Version: 0.1.0
+Authors@R: 
+    person("Tor", "Storli", email = "your.email@example.com",
+           role = c("aut", "cre"))
+Description: Provides 55 Excel-compatible financial functions implemented in
+    Rust for high performance. Functions cover annuity calculations (FV, PV,
+    PMT, IPMT, PPMT, CUMIPMT, CUMPRINC, NPER, RATE, ISPMT), cash flow
+    analysis (NPV, IRR, MIRR, XNPV, XIRR), depreciation (SLN, SYD, DB, DDB,
+    VDB, AMORLINC, AMORDEGRC), coupon date calculations (COUPDAYBS, COUPDAYS,
+    COUPDAYSNC, COUPNCD, COUPPCD, COUPNUM), bond and security pricing (PRICE,
+    PRICEDISC, PRICEMAT, YIELD, YIELDDISC, YIELDMAT, DISC, INTRATE, RECEIVED,
+    DURATION, MDURATION, ACCRINT, ACCRINTM), and miscellaneous functions
+    (EFFECT, NOMINAL, DOLLARDE, DOLLARFR, FVSCHEDULE, RRI, PDURATION,
+    TBILLPRICE, TBILLYIELD, TBILLEQ, ODDFPRICE, ODDFYIELD, ODDLPRICE,
+    ODDLYIELD). All functions match Excel output and handle invalid inputs
+    gracefully by returning NA.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+SystemRequirements: Cargo (Rust's package manager), rustc
+Config/rextendr/version: 0.5.0
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+URL: https://github.com/Tor-Storli/Financial_Functions
+BugReports: https://github.com/Tor-Storli/Financial_Functions/issues
+Depends: 
+    R (>= 4.2)
+Config/roxygen2/version: 8.0.0

@@ -1,0 +1,24 @@
+[package]
+name = "financial-functions"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+name = "financial_functions_r"
+
+[dependencies]
+# R-Rust bridge
+extendr-api = "0.7"
+
+# Financial calculation helpers (used by cash_flows.rs for NPV/FV)
+financial = "1.1.5"
+
+# Date arithmetic (used by coupons, bonds, xirr, xnpv)
+chrono = "0.4"
+
+[profile.release]
+lto        = true
+strip      = true
+opt-level  = 3
+
