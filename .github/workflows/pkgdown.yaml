@@ -37,16 +37,27 @@ jobs:
       - name: Install R dependencies
         run: |
           install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
-                             "devtools", "desc"))
+                             "devtools", "desc", "roxygen2"))
         shell: Rscript {0}
 
-      - name: Build package
+      - name: Build package (no vignettes, no manual)
         run: R CMD build --no-manual --no-build-vignettes .
 
-      - name: Install package
+      - name: Install built package
         run: |
-          pkg <- list.files(".", pattern = "\\.tar\\.gz$", full.names = TRUE)[1]
-          install.packages(pkg, repos = NULL, type = "source")
+          pkg <- list.files(".", pattern = "\\.tar\\.gz$", full.names = TRUE)
+          if (length(pkg) == 0) stop("No .tar.gz found!")
+          cat("Installing:", pkg[1], "\n")
+          install.packages(pkg[1], repos = NULL, type = "source")
+          cat("Installed packages:\n")
+          print(installed.packages()[, "Package"])
+        shell: Rscript {0}
+
+      - name: Verify package loads
+        run: |
+          library(FinancialFunctions)
+          cat("Package loaded successfully\n")
+          cat("pmt result:", pmt(0.0325/12, 180, 350000, 0, FALSE), "\n")
         shell: Rscript {0}
 
       - name: Build pkgdown site
