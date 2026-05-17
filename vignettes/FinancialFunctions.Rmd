@@ -9,351 +9,1000 @@ vignette: >
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
-  collapse  = TRUE,
-  comment   = "#>",
-  digits    = 4
+  collapse = TRUE,
+  comment  = "#>",
+  digits   = 4
 )
 library(FinancialFunctions)
 ```
 
+```{css, echo = FALSE}
+h2 { border-bottom: 2px solid #0f3460; padding-bottom: 6px; color: #0f3460; }
+h3 { color: #16213e; margin-top: 1.5rem; }
+.fn-card {
+  background: #f8faff;
+  border-left: 4px solid #0f3460;
+  padding: 0.8rem 1.2rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.5rem 0 0.3rem 0;
+  font-family: monospace;
+  font-size: 1.05em;
+  color: #b7410e;
+  font-weight: bold;
+}
+.purpose {
+  color: #444;
+  font-style: italic;
+  margin: 0.3rem 0 0.8rem 0;
+  font-family: sans-serif;
+  font-weight: normal;
+  font-size: 0.97em;
+}
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th { background: #0f3460; color: white; padding: 8px 12px; text-align: left; }
+td { padding: 7px 12px; border-bottom: 1px solid #e0e0e0; }
+tr:nth-child(even) { background: #f8faff; }
+```
+
 ## Overview
 
-**FinancialFunctions** provides 55 Excel-compatible financial functions implemented
-in Rust for high performance. All functions:
+**FinancialFunctions** provides 55 Excel-compatible financial functions
+implemented in Rust for high-performance calculations directly inside R.
+Every function:
 
-- Match Excel output exactly
-- Return `NA` (never crash) on invalid input
-- Work on scalar values and inside `dplyr` pipelines
+- Produces results **identical to Excel** for the same inputs
+- Returns **`NA`** on invalid or out-of-range input — never crashes
+- Works on **scalar values** and inside `dplyr::mutate()` pipelines
 
 ```{r}
 library(FinancialFunctions)
 ```
+
+The 55 functions are organised into six groups:
+
+| Group | Description | Count |
+|-------|-------------|------:|
+| 💰 Annuity | Loan payments, present/future values, interest rates | 10 |
+| 📈 Cash Flows | NPV, IRR and irregular-date variants | 5 |
+| 🏭 Depreciation | Asset write-down under various accounting methods | 7 |
+| 🗓️ Coupon Dates | Bond coupon period date arithmetic | 6 |
+| 🏦 Bonds & Securities | Pricing, yields, duration, accrued interest | 13 |
+| 🔧 Miscellaneous | Rate conversions, T-bills, dollar notation, growth | 14 |
 
 ---
 
 ## 💰 Annuity Functions
 
-Annuity functions calculate the components of loan repayments and savings plans.
+Annuity functions answer the core time-value-of-money questions in corporate
+finance, personal lending, and savings planning. They model a stream of fixed
+payments at a fixed interest rate over a fixed number of periods.
 
-### PMT — Periodic Payment
+---
 
-What is the monthly payment on a mortgage?
+<div class="fn-card">fv(rate, nper, pmt, pv, pmt_at_beginning)</div>
+<div class="purpose">Future Value — how much will a series of payments and/or
+a lump sum grow to over time at a given interest rate? Used to project
+the terminal value of a savings plan, pension pot, or investment portfolio.</div>
 
 ```{r}
-# $350,000 mortgage at 3.25% annual rate over 15 years
-pmt(rate = 0.0325/12, nper = 180, pv = 350000, fv = 0, pmt_at_beginning = FALSE)
+# Saving $200/month for 10 months at 6% annual, starting with $500
+# Excel: FV(0.06/12, 10, -200, -500, TRUE) = 2581.40
+fv(0.06/12, 10, -200, -500, TRUE)
+
+# Monthly savings of $1,000 for 12 months at 12% annual
+fv(0.12/12, 12, -1000, 0, FALSE)
+
+# Guard: zero rate — FV is simply the sum of all payments
+fv(0.0, 10, -100, -500, FALSE)
 ```
 
-### FV — Future Value
+---
 
-How much will monthly savings of $500 grow to over 20 years at 6%?
+<div class="fn-card">pv(rate, nper, pmt, fv, pmt_at_beginning)</div>
+<div class="purpose">Present Value — what is a future stream of payments worth
+in today's money? Used to value annuities, mortgages, pensions, and any
+fixed-income obligation.</div>
 
 ```{r}
-fv(rate = 0.06/12, nper = 240, pmt = -500, pv = 0, pmt_at_beginning = FALSE)
+# What is a pension paying $500/month for 20 years worth today at 8%?
+# Excel: PV(0.08/12, 20*12, 500, 0, FALSE) = -59777.15
+pv(0.08/12, 240, 500, 0, FALSE)
 ```
 
-### PV — Present Value
+---
 
-What is a pension worth today if it pays $2,000/month for 20 years at 5%?
+<div class="fn-card">pmt(rate, nper, pv, fv, pmt_at_beginning)</div>
+<div class="purpose">Payment — what fixed periodic payment is required to
+repay a loan or reach a savings target? The workhorse of mortgage, car loan,
+and savings plan calculations.</div>
 
 ```{r}
-pv(rate = 0.05/12, nper = 240, pmt = 2000, fv = 0, pmt_at_beginning = FALSE)
+# Monthly repayment on a $10,000 loan at 8% over 10 months
+# Excel: PMT(0.08/12, 10, 10000, 0, FALSE) = -1037.03
+pmt(0.08/12, 10, 10000, 0, FALSE)
+
+# Guard: zero rate — payment = loan / periods
+pmt(0.0, 12, 1200, 0, FALSE)
 ```
 
-### RATE — Interest Rate
+---
 
-What annual rate is implied by a $350,000 loan with $2,459 monthly payments over 15 years?
+<div class="fn-card">ipmt(rate, per, nper, pv, fv, pmt_at_beginning)</div>
+<div class="purpose">Interest Payment — of a periodic payment, how much goes
+toward interest? Essential for building loan amortisation tables and for
+reporting mortgage interest for tax purposes. Returns NA if per is outside
+[1, nper].</div>
 
 ```{r}
-rate(nper = 180, pmt = -2459, pv = 350000, fv = 0,
-     pmt_at_beginning = FALSE, guess = 0.05) * 12
+# Interest in period 1 of an $8,000 loan at 10% over 3 months
+# Excel: IPMT(0.10/12, 1, 3, 8000, 0, FALSE) = -66.67
+ipmt(0.10/12, 1, 3, 8000, 0, FALSE)
+
+# Guard: period = 0 returns NA
+ipmt(0.10/12, 0, 12, 10000, 0, FALSE)
+
+# Guard: period > nper returns NA
+ipmt(0.10/12, 99, 12, 10000, 0, FALSE)
 ```
 
-### NPER — Number of Periods
+---
 
-How many months to pay off a $10,000 loan at 8% with $200 monthly payments?
+<div class="fn-card">ppmt(rate, per, nper, pv, fv, pmt_at_beginning)</div>
+<div class="purpose">Principal Payment — of a periodic payment, how much
+reduces the outstanding loan balance? Together with ipmt(), this builds a
+complete amortisation schedule showing the split between interest and
+principal for every period.</div>
 
 ```{r}
-nper(rate = 0.08/12, pmt = -200, pv = 10000, fv = 0, pmt_at_beginning = FALSE)
+# Principal in period 1 of a $2,000 loan at 10% over 24 months
+# Excel: PPMT(0.10/12, 1, 24, 2000, 0, FALSE) = -75.62
+ppmt(0.10/12, 1, 24, 2000, 0, FALSE)
 ```
 
-### Loan Amortisation Table
-
-Build a full amortisation schedule using `ipmt` and `ppmt`:
+**Full amortisation schedule — first 6 months of a $350,000 mortgage:**
 
 ```{r}
-periods <- 1:12
-schedule <- data.frame(
+periods <- 1:6
+data.frame(
   Period    = periods,
-  Payment   = round(pmt(0.04/12, 360, 300000, 0, FALSE), 2),
-  Interest  = round(sapply(periods, function(p) ipmt(0.04/12, p, 360, 300000, 0, FALSE)), 2),
-  Principal = round(sapply(periods, function(p) ppmt(0.04/12, p, 360, 300000, 0, FALSE)), 2)
+  Payment   = round(pmt(0.0325/12, 180, 350000, 0, FALSE), 2),
+  Interest  = round(sapply(periods, function(p) ipmt(0.0325/12, p, 180, 350000, 0, FALSE)), 2),
+  Principal = round(sapply(periods, function(p) ppmt(0.0325/12, p, 180, 350000, 0, FALSE)), 2)
 )
-head(schedule, 6)
 ```
 
-### Cumulative Interest and Principal
+---
 
-How much interest is paid in the first year of a $300,000 mortgage at 4%?
+<div class="fn-card">cumipmt(rate, nper, pv, start_period, end_period, pmt_at_beginning)</div>
+<div class="purpose">Cumulative Interest — the total interest paid between two
+specific periods. Used for annual mortgage interest statements, tax filings,
+and comparing loan products. Returns NA if start_period > end_period or
+either is outside [1, nper].</div>
 
 ```{r}
-# Cumulative interest for periods 1 through 12
-cumipmt(rate = 0.04/12, nper = 360, pv = 300000,
-        start_period = 1, end_period = 12, pmt_at_beginning = FALSE)
+# Total interest in the first month of a $125,000 mortgage at 9% over 30 years
+# Excel: CUMIPMT(0.09/12, 360, 125000, 1, 1, FALSE) = -937.50
+cumipmt(0.09/12, 360, 125000, 1, 1, FALSE)
 
-# Cumulative principal for the same period
-cumprinc(rate = 0.04/12, nper = 360, pv = 300000,
-         start_period = 1, end_period = 12, pmt_at_beginning = FALSE)
+# Guard: start > end returns NA
+cumipmt(0.09/12, 360, 125000, 5, 1, FALSE)
+
+# Guard: end > nper returns NA
+cumipmt(0.09/12, 12, 125000, 1, 999, FALSE)
+```
+
+---
+
+<div class="fn-card">cumprinc(rate, nper, pv, start_period, end_period, pmt_at_beginning)</div>
+<div class="purpose">Cumulative Principal — the total principal repaid between
+two periods. Paired with cumipmt() to show exactly how much a loan balance
+has been reduced over any time span.</div>
+
+```{r}
+# Principal repaid in the first month of the same mortgage
+# Excel: CUMPRINC(0.09/12, 360, 125000, 1, 1, FALSE) = -68.28
+cumprinc(0.09/12, 360, 125000, 1, 1, FALSE)
+
+# Guard: start > end returns NA
+cumprinc(0.09/12, 360, 125000, 10, 1, FALSE)
+```
+
+---
+
+<div class="fn-card">nper(rate, pmt, pv, fv, pmt_at_beginning)</div>
+<div class="purpose">Number of Periods — how long will it take to pay off a
+loan or reach a savings goal? Answers "how many months until my mortgage is
+paid off?" or "how many years until my portfolio reaches $1 million?"</div>
+
+```{r}
+# How many months to grow -$1,000 to $10,000 at 12% with $100/month?
+# Excel: NPER(0.12/12, -100, -1000, 10000, TRUE) = 59.67
+nper(0.12/12, -100, -1000, 10000, TRUE)
+```
+
+---
+
+<div class="fn-card">rate(nper, pmt, pv, fv, pmt_at_beginning, guess)</div>
+<div class="purpose">Interest Rate — what rate is implied by a known set of
+loan or savings terms? Uses Newton-Raphson iteration (up to 300 iterations,
+tolerance 1e-10). Returns NA if the solver does not converge — try a different
+initial guess. Returns NA if nper = 0.</div>
+
+```{r}
+# Annual rate implied by 48 monthly payments of $200 on an $8,000 loan
+# Excel: RATE(48, -200, 8000, 0, FALSE, 0.1) * 12 = 9.24%
+rate(48, -200, 8000, 0, FALSE, 0.1) * 12
+
+# Guard: nper = 0 returns NA
+rate(0, -200, 8000, 0, FALSE, 0.1)
+```
+
+---
+
+<div class="fn-card">ispmt(rate, per, nper, pv)</div>
+<div class="purpose">Interest Paid (Straight-Line Loan) — calculates interest
+paid in a specific period under a straight-line repayment schedule (equal
+principal instalments). Different from ipmt(), which applies to standard
+annuity loans with equal total payments. Returns NA if per is outside
+[1, nper].</div>
+
+```{r}
+# Interest in period 1 of an 8,000,000 loan at 10% over 36 periods
+# Excel: ISPMT(0.10/12, 1, 36, 8000000) = -66666.67
+ispmt(0.10/12, 1, 36, 8000000)
+
+# Guard: per = 0 returns NA
+ispmt(0.05, 0, 12, 10000)
+
+# Guard: per > nper returns NA
+ispmt(0.05, 99, 12, 10000)
 ```
 
 ---
 
 ## 📈 Cash Flow Functions
 
-### NPV — Net Present Value
+Cash flow functions evaluate investment decisions. They answer questions like
+"does this project create value?" and "what return does this investment produce?"
+They are the primary tools of capital budgeting, project appraisal, and
+private equity valuation.
 
-Is a $40,000 investment worth it given these projected cash flows at 8% discount?
+---
+
+<div class="fn-card">npv(rate, values)</div>
+<div class="purpose">Net Present Value — the present value of all future cash
+flows discounted at a given rate. A positive NPV means the investment creates
+value at that discount rate. Note: like Excel, npv() treats the first element
+as a period-1 cash flow — add any time-0 investment separately.</div>
 
 ```{r}
-# Initial investment at time 0 + NPV of future flows
-npv(rate = 0.08, values = c(8000, 9200, 10000, 12000, 14500)) + (-40000)
+# Is a $10,000 investment worth it given these annual cash flows at 10%?
+# Excel: NPV(0.10, -10000, 3000, 4200, 6800) = 1188.44
+npv(0.10, c(-10000, 3000, 4200, 6800))
+
+# With period-0 investment added separately
+npv(0.08, c(8000, 9200, 10000, 12000, 14500)) + (-40000)
+
+# Guard: empty vector returns NA
+npv(0.10, numeric(0))
 ```
 
-A positive NPV means the investment creates value.
+---
 
-### IRR — Internal Rate of Return
-
-What is the return on a 5-year project?
+<div class="fn-card">irr(values)</div>
+<div class="purpose">Internal Rate of Return — the discount rate at which the
+NPV of a series of cash flows equals zero. A project whose IRR exceeds the
+cost of capital creates value. Requires at least one positive and one negative
+cash flow. Uses bisection — robust against non-standard cash flow patterns.
+Returns NA if no solution exists.</div>
 
 ```{r}
+# IRR of a 5-year project — Excel: IRR(-70000,...,26000) = 8.66%
 irr(c(-70000, 12000, 15000, 18000, 21000, 26000))
+
+# IRR after 4 years only (still negative — hasn't broken even yet)
+irr(c(-70000, 12000, 15000, 18000, 21000))
+
+# IRR after 2 years
+irr(c(-70000, 12000, 15000))
+
+# Guard: all positive (no valid IRR) returns NA
+irr(c(100, 200, 300))
+
+# Guard: all negative returns NA
+irr(c(-100, -200, -300))
+
+# Guard: single value returns NA
+irr(c(-1000))
 ```
 
+---
+
+<div class="fn-card">mirr(values, finance_rate, reinvest_rate)</div>
+<div class="purpose">Modified IRR — addresses IRR's reinvestment assumption
+by using separate rates for financing negative flows (cost of borrowing) and
+reinvesting positive flows (reinvestment return). More realistic than IRR
+for most real-world projects. Returns NA if all cash flows have the same sign.</div>
+
 ```{r}
-# Convert to percentage
-irr(c(-70000, 12000, 15000, 18000, 21000, 26000)) * 100
+# 5-year project, 10% financing, 12% reinvestment
+# Excel: MIRR(-120000,...,46000, 0.10, 0.12) = 12.61%
+mirr(c(-120000, 39000, 30000, 21000, 37000, 46000), 0.10, 0.12)
+
+# After 3 years only (negative — not yet viable)
+mirr(c(-120000, 39000, 30000, 21000), 0.10, 0.12)
+
+# With 14% reinvestment rate
+mirr(c(-120000, 39000, 30000, 21000, 37000, 46000), 0.10, 0.14)
+
+# Guard: all positive returns NA
+mirr(c(100, 200, 300), 0.10, 0.12)
 ```
 
-### MIRR — Modified IRR
+---
 
-MIRR uses separate rates for financing (cost of capital) and reinvestment:
+<div class="fn-card">xnpv(rate, values, dates)</div>
+<div class="purpose">NPV with Irregular Dates — like npv() but discounts each
+cash flow by its exact actual date rather than assuming equal periods. Essential
+for real-world projects where cash flows don't fall on regular calendar dates.
+Dates must be "YYYY-MM-DD" strings, the same length as values.</div>
 
 ```{r}
-mirr(
-  values       = c(-120000, 39000, 30000, 21000, 37000, 46000),
-  finance_rate  = 0.10,
-  reinvest_rate = 0.12
-)
+# Irregular cash flows at actual dates, discounted at 9%
+# Excel: XNPV(0.09, values, dates) = 2086.65
+xnpv(0.09,
+  c(-10000, 2750, 4250, 3250, 2750),
+  c("2008-01-01","2008-03-01","2008-10-30","2009-02-15","2009-04-01"))
+
+# Guard: mismatched lengths return NA
+xnpv(0.09, c(-10000, 2750), "2008-01-01")
+
+# Guard: bad date string returns NA
+xnpv(0.09, c(-10000, 2750), c("not-a-date","2008-03-01"))
 ```
 
-### XNPV and XIRR — Irregular Cash Flows
+---
 
-When cash flows don't fall on regular intervals, use the date-based versions:
-
-```{r}
-values <- c(-10000, 2750, 4250, 3250, 2750)
-dates  <- c("2024-01-01", "2024-03-01", "2024-10-30", "2025-02-15", "2025-04-01")
-
-xnpv(rate = 0.09, values = values, dates = dates)
-```
+<div class="fn-card">xirr(values, dates)</div>
+<div class="purpose">IRR with Irregular Dates — the date-based counterpart to
+irr(). Finds the discount rate that makes XNPV equal zero. The standard tool
+for private equity, real estate, and any investment with irregularly timed
+cash flows. Returns NA if no solution exists.</div>
 
 ```{r}
-xirr(values = values, dates = dates)
+# Excel: XIRR(values, dates) = 37.34%
+xirr(c(-10000, 2750, 4250, 3250, 2750),
+     c("2008-01-01","2008-03-01","2008-10-30","2009-02-15","2009-04-01"))
+
+# Guard: all positive returns NA
+xirr(c(100, 200, 300), c("2020-01-01","2020-06-01","2021-01-01"))
+
+# Guard: mismatched lengths return NA
+xirr(c(-10000, 2750), "2008-01-01")
 ```
 
 ---
 
 ## 🏭 Depreciation Functions
 
-### SLN — Straight-Line Depreciation
+Depreciation functions allocate the cost of an asset over its useful life.
+Different methods produce different profiles — straight-line for simplicity,
+accelerated methods for faster early write-downs (tax advantages), and French
+methods (AMORLINC, AMORDEGRC) required by European accounting standards.
+
+---
+
+<div class="fn-card">sln(cost, salvage, life)</div>
+<div class="purpose">Straight-Line Depreciation — allocates an equal charge
+each period. The simplest and most transparent method: (cost - salvage) / life.
+Returns NA if life = 0.</div>
 
 ```{r}
-# $30,000 asset, $7,500 salvage value, 10-year life
-sln(cost = 30000, salvage = 7500, life = 10)
+# $30,000 asset, $7,500 salvage, 10-year life
+# Excel: SLN(30000, 7500, 10) = 2250
+sln(30000, 7500, 10)
+
+# Guard: life = 0 returns NA
+sln(30000, 7500, 0)
 ```
 
-### DDB — Double-Declining Balance
+---
+
+<div class="fn-card">syd(cost, salvage, life, per)</div>
+<div class="purpose">Sum-of-Years-Digits Depreciation — an accelerated method
+that front-loads depreciation. Year 1 gets the largest charge; it decreases
+each year. Useful for assets that lose value quickly in early life (vehicles,
+technology equipment).</div>
 
 ```{r}
-# Year 1 depreciation on a $2,400 asset with 10-year life
-ddb(cost = 2400, salvage = 300, life = 10, per = 1, factor = 2)
+# Year 1: $30,000 asset, $7,500 salvage, 10-year life
+# Excel: SYD(30000, 7500, 10, 1) = 4090.91
+syd(30000, 7500, 10, 1)
 ```
 
-### Depreciation Schedule
+---
 
-Compare methods over the full asset life:
+<div class="fn-card">db(cost, salvage, life, per, month)</div>
+<div class="purpose">Fixed-Declining Balance Depreciation — applies a fixed
+percentage rate to the declining book value each period. The rate is computed
+from cost, salvage, and life. The month argument handles partial first years
+when an asset is acquired mid-year.</div>
 
 ```{r}
-asset_life <- 1:10
+# $1,000,000 asset, $100,000 salvage, 6-year life, acquired in month 6
+# Excel: DB(1000000, 100000, 6, 1, 7) = 186083.33
+db(1000000, 100000, 6, 1, 7)
+```
+
+---
+
+<div class="fn-card">ddb(cost, salvage, life, per, factor)</div>
+<div class="purpose">Double-Declining Balance Depreciation — applies double
+the straight-line rate to the declining book value. The most aggressive
+standard accelerated method. The factor parameter controls the multiplier
+(2.0 = double-declining, the Excel default).</div>
+
+```{r}
+# Year 1: $2,400 asset, $300 salvage, 10-year life
+# Excel: DDB(2400, 300, 10, 1, 2) = 480
+ddb(2400, 300, 10, 1, 2)
+```
+
+---
+
+<div class="fn-card">vdb(cost, salvage, life, start_period, end_period, factor, no_switch)</div>
+<div class="purpose">Variable Declining Balance — the most flexible
+depreciation function. Computes depreciation over any time span including
+fractional periods, and optionally switches to straight-line when it becomes
+more advantageous. Ideal for pro-rated partial-year calculations.</div>
+
+```{r}
+# First month of a $2,400 asset with life expressed in months
+# Excel: VDB(2400, 300, 10*12, 0, 1, 2, FALSE) = 40
+vdb(2400, 300, 10*12, 0, 1, 2, FALSE)
+
+# Full first year
+vdb(2400, 300, 10, 0, 1, 2, FALSE)
+```
+
+**Depreciation comparison over 10 years:**
+
+```{r}
+years <- 1:10
 data.frame(
-  Year         = asset_life,
+  Year         = years,
   StraightLine = round(sln(30000, 7500, 10), 0),
-  SumOfYears   = round(sapply(asset_life, function(p) syd(30000, 7500, 10, p)), 0),
-  DeclBalance  = round(sapply(asset_life, function(p) ddb(30000, 7500, 10, p, 2)), 0)
+  SumOfYears   = round(sapply(years, function(p) syd(30000, 7500, 10, p)), 0),
+  DblDeclining = round(sapply(years, function(p) ddb(30000, 7500, 10, p, 2)), 0)
 )
+```
+
+---
+
+<div class="fn-card">amorlinc(cost, date_purchased, first_period, salvage, period, rate, basis)</div>
+<div class="purpose">French Straight-Line Depreciation — a European accounting
+standard where the first period's charge is pro-rated by the actual number of
+days between purchase and period end. Dates are Excel serial numbers
+(days since 1899-12-30).</div>
+
+```{r}
+# Excel date 39679 = 2008-09-23, first period end 39813 = 2009-02-01
+# Excel: AMORLINC(2400, 39679, 39813, 300, 1, 0.15, 1) = 360
+amorlinc(2400, 39679, 39813, 300, 1, 0.15, 1)
+```
+
+---
+
+<div class="fn-card">amordegrc(cost, date_purchased, first_period, salvage, period, rate, basis)</div>
+<div class="purpose">French Degressive Depreciation — like AMORLINC but applies
+a coefficient based on the asset's useful life that accelerates the write-down.
+Required by French tax law and some other European accounting standards.
+Returns NA if rate = 0.</div>
+
+```{r}
+# Same asset — degressive method gives a higher first-year charge
+# Excel: AMORDEGRC(2400, 39679, 39813, 300, 1, 0.15, 1) = 776
+amordegrc(2400, 39679, 39813, 300, 1, 0.15, 1)
+
+# Guard: rate = 0 returns NA
+amordegrc(2400, 39679, 39813, 300, 1, 0.0, 1)
 ```
 
 ---
 
 ## 🗓️ Coupon Date Functions
 
-These functions calculate dates and day counts for bond coupon periods.
+Coupon date functions calculate dates and day counts for bond coupon periods.
+They are essential for accrued interest calculations, settlement processing,
+and bond analytics. All date arguments use `"YYYY-MM-DD"` format.
+
+**Day-count basis codes:**
+
+| Code | Convention | Common Use |
+|------|-----------|------------|
+| 0 | US 30/360 | US corporate and agency bonds |
+| 1 | Actual/Actual | US Treasuries, government bonds |
+| 2 | Actual/360 | US money markets |
+| 3 | Actual/365 | UK Gilts |
+| 4 | European 30/360 | Eurobonds |
+
+All coupon functions return NA if settlement >= maturity (prevents infinite loops).
+
+---
+
+<div class="fn-card">coupdaybs(settlement, maturity, frequency, basis)</div>
+<div class="purpose">Days from Coupon Start to Settlement — the number of days
+elapsed since the beginning of the current coupon period (i.e., since the last
+coupon date). Used to compute the accrued interest the bond buyer owes the
+seller.</div>
 
 ```{r}
-settle  <- "2024-01-25"
-mature  <- "2030-11-15"
-freq    <- 2        # semiannual
-basis   <- 1        # actual/actual
+# Settled 2011-01-25, matures 2011-11-15, semiannual, actual/actual
+# Excel: COUPDAYBS("2011-01-25","2011-11-15",2,1) = 71
+coupdaybs("2011-01-25", "2011-11-15", 2, 1)
 
-# Days from last coupon to settlement
-coupdaybs(settle, mature, freq, basis)
+# Guard: settlement > maturity returns NA
+coupdaybs("2025-01-01", "2020-01-01", 2, 1)
 
-# Total days in coupon period
-coupdays(settle, mature, freq, basis)
+# Guard: settlement = maturity returns NA
+coupdaybs("2020-01-01", "2020-01-01", 2, 1)
+```
 
-# Days from settlement to next coupon
-coupdaysnc(settle, mature, freq, basis)
+---
 
-# Number of coupons remaining
-coupnum(settle, mature, freq, basis)
+<div class="fn-card">coupdays(settlement, maturity, frequency, basis)</div>
+<div class="purpose">Total Days in Coupon Period — the full length of the
+coupon period containing the settlement date. Combined with coupdaybs(), this
+gives the fraction of the period elapsed: coupdaybs / coupdays = accrual
+fraction.</div>
+
+```{r}
+# Excel: COUPDAYS("2011-01-25","2011-11-15",2,1) = 181
+coupdays("2011-01-25", "2011-11-15", 2, 1)
+```
+
+---
+
+<div class="fn-card">coupdaysnc(settlement, maturity, frequency, basis)</div>
+<div class="purpose">Days from Settlement to Next Coupon — the number of days
+remaining until the next coupon payment. Equals coupdays - coupdaybs. Used in
+bond pricing to determine the timing of the nearest cash flow.</div>
+
+```{r}
+# Excel: COUPDAYSNC("2011-01-25","2011-11-15",2,1) = 110
+coupdaysnc("2011-01-25", "2011-11-15", 2, 1)
+```
+
+---
+
+<div class="fn-card">coupncd(settlement, maturity, frequency, basis)</div>
+<div class="purpose">Next Coupon Date — the date of the next coupon payment,
+returned as an Excel serial number. Convert to an R Date using
+as.Date(result, origin = "1899-12-30").</div>
+
+```{r}
+serial <- coupncd("2011-01-25", "2011-11-15", 2, 1)
+as.Date(serial, origin = "1899-12-30")
+```
+
+---
+
+<div class="fn-card">couppcd(settlement, maturity, frequency, basis)</div>
+<div class="purpose">Previous Coupon Date — the date of the most recent coupon
+payment before the settlement date. This is the start of the current accrual
+period, used to compute accrued interest.</div>
+
+```{r}
+serial <- couppcd("2011-01-25", "2011-11-15", 2, 1)
+as.Date(serial, origin = "1899-12-30")
+```
+
+---
+
+<div class="fn-card">coupnum(settlement, maturity, frequency, basis)</div>
+<div class="purpose">Number of Coupons Remaining — how many coupon payments
+remain between settlement and maturity. Determines the number of discounting
+periods in bond pricing.</div>
+
+```{r}
+# Excel: COUPNUM("2007-01-25","2008-11-15",2,1) = 4
+coupnum("2007-01-25", "2008-11-15", 2, 1)
 ```
 
 ---
 
 ## 🏦 Bond & Security Functions
 
-### PRICE — Clean Bond Price
+Bond functions implement the standard market conventions used by Bloomberg,
+Refinitiv, and fixed-income trading desks worldwide. They price bonds, compute
+yields, measure interest-rate sensitivity, and calculate accrued interest.
 
-What is the clean price of a 5.75% coupon bond maturing in 2030?
+---
+
+<div class="fn-card">price(settlement, maturity, rate, yld, redemption, frequency, basis)</div>
+<div class="purpose">Clean Bond Price — the present value of all future coupon
+and principal cash flows, expressed per $100 face value. Returns the clean
+price (excluding accrued interest), which is the standard market quotation.
+Returns NA if settlement >= maturity.</div>
 
 ```{r}
-price(
-  settlement = "2024-02-15",
-  maturity   = "2030-11-15",
-  rate       = 0.0575,
-  yld        = 0.065,
-  redemption = 100,
-  frequency  = 2,
-  basis      = 0
-)
+# 5.75% coupon bond, 6.5% yield, semiannual, 30/360
+# Excel: PRICE("2008-02-15","2017-11-15",0.0575,0.065,100,2,0) = 94.63
+price("2008-02-15", "2017-11-15", 0.0575, 0.065, 100, 2, 0)
+
+# Guard: settlement > maturity returns NA
+price("2020-01-01", "2010-01-01", 0.05, 0.06, 100, 2, 0)
+
+# Guard: bad date returns NA
+price("bad-date", "2017-11-15", 0.0575, 0.065, 100, 2, 0)
 ```
 
-### YIELD — Bond Yield
+---
 
-What yield does a bond with price 94.63 imply?
+<div class="fn-card">yield_(settlement, maturity, rate, pr, redemption, frequency, basis)</div>
+<div class="purpose">Yield to Maturity — the internal rate of return of a bond
+given its clean market price. The inverse of price(). Note the trailing
+underscore — this avoids a conflict with R's built-in yield keyword.</div>
 
 ```{r}
-yield_(
-  settlement = "2024-02-15",
-  maturity   = "2030-11-15",
-  rate       = 0.0575,
-  pr         = 94.63,
-  redemption = 100,
-  frequency  = 2,
-  basis      = 0
-)
+# YTM of the same bond priced at 95.04287
+# Excel: YIELD("2008-02-15","2016-11-15",0.0575,95.04287,100,2,0) = 6.5%
+yield_("2008-02-15", "2016-11-15", 0.0575, 95.04287, 100, 2, 0)
 ```
 
-### DURATION and MDURATION
+---
+
+<div class="fn-card">pricedisc(settlement, maturity, discount, redemption, basis)</div>
+<div class="purpose">Price of a Discounted Security — calculates the price of
+a zero-coupon or discount security (Treasury bill, commercial paper) from its
+annualised discount rate.</div>
 
 ```{r}
-# Macaulay Duration
-duration(
-  settlement = "2024-01-01",
-  maturity   = "2032-01-01",
-  coupon     = 0.08,
-  yld        = 0.09,
-  frequency  = 2,
-  basis      = 1
-)
-
-# Modified Duration (price sensitivity to yield changes)
-mduration(
-  settlement = "2024-01-01",
-  maturity   = "2032-01-01",
-  coupon     = 0.08,
-  yld        = 0.09,
-  frequency  = 2,
-  basis      = 1
-)
+# Excel: PRICEDISC("2008-02-16","2008-03-01",0.0525,100,2) = 99.795
+pricedisc("2008-02-16", "2008-03-01", 0.0525, 100, 2)
 ```
 
-### Treasury Bills
+---
+
+<div class="fn-card">yielddisc(settlement, maturity, pr, redemption, basis)</div>
+<div class="purpose">Yield of a Discounted Security — the annualised yield of
+a discount security from its price. The inverse of pricedisc().</div>
 
 ```{r}
-# T-bill price
-tbillprice(settlement = "2024-03-31", maturity = "2024-06-01", discount = 0.09)
+# Excel: YIELDDISC("2008-02-16","2008-03-01",99.795,100,2) = 5.25%
+yielddisc("2008-02-16", "2008-03-01", 99.795, 100, 2)
+```
 
-# T-bill yield
-tbillyield(settlement = "2024-03-31", maturity = "2024-06-01", pr = 98.45)
+---
 
-# Bond-equivalent yield
-tbilleq(settlement = "2024-03-31", maturity = "2024-06-01", discount = 0.0914)
+<div class="fn-card">pricemat(settlement, maturity, issue, rate, yld, basis)</div>
+<div class="purpose">Price of Security Paying at Maturity — prices a security
+that pays all interest at maturity rather than periodically (term deposit,
+zero-coupon bond).</div>
+
+```{r}
+pricemat("2008-02-15", "2008-04-13", "2007-11-11", 0.061, 0.061, 0)
+```
+
+---
+
+<div class="fn-card">yieldmat(settlement, maturity, issue, rate, pr, basis)</div>
+<div class="purpose">Yield of Security Paying at Maturity — the yield of a
+security that pays interest at maturity. The inverse of pricemat().</div>
+
+```{r}
+yieldmat("2008-03-15", "2008-11-03", "2007-11-08", 0.0625, 100.0123, 0)
+```
+
+---
+
+<div class="fn-card">disc(settlement, maturity, pr, redemption, basis)</div>
+<div class="purpose">Discount Rate — the annualised discount rate of a
+security from its price and redemption value. Used for Treasury bills
+and other discount instruments.</div>
+
+```{r}
+disc("2008-02-16", "2008-03-01", 97.975, 100, 2)
+```
+
+---
+
+<div class="fn-card">intrate(settlement, maturity, investment, redemption, basis)</div>
+<div class="purpose">Interest Rate for Fully Invested Security — the implied
+annual interest rate for a security where the investor pays a known price and
+receives a known redemption value, with no intermediate coupon payments.</div>
+
+```{r}
+# Excel: INTRATE("2008-02-15","2008-05-15",1000000,1014420,2) = 5.768%
+intrate("2008-02-15", "2008-05-15", 1000000, 1014420, 2)
+```
+
+---
+
+<div class="fn-card">received(settlement, maturity, investment, discount, basis)</div>
+<div class="purpose">Amount Received at Maturity — the total amount an investor
+receives at maturity given an initial investment and annual discount rate.
+The inverse of intrate().</div>
+
+```{r}
+# Excel: RECEIVED("2008-02-15","2008-05-15",1000000,0.0575,2) = 1014584.65
+received("2008-02-15", "2008-05-15", 1000000, 0.0575, 2)
+```
+
+---
+
+<div class="fn-card">duration(settlement, maturity, coupon, yld, frequency, basis)</div>
+<div class="purpose">Macaulay Duration — the weighted average time (in years)
+to receive all the bond's cash flows, weighted by their present values. A
+measure of interest-rate risk: bonds with longer duration experience larger
+price swings when yields change.</div>
+
+```{r}
+# 8% coupon bond, 9% yield, semiannual, actual/actual
+# Excel: DURATION("2008-01-01","2016-01-01",0.08,0.09,2,1) = 5.9938
+duration("2008-01-01", "2016-01-01", 0.08, 0.09, 2, 1)
+```
+
+---
+
+<div class="fn-card">mduration(settlement, maturity, coupon, yld, frequency, basis)</div>
+<div class="purpose">Modified Duration — Macaulay Duration divided by
+(1 + yield/frequency). Measures the percentage change in a bond's price for
+a 1 percentage point (100 basis point) change in yield. The standard tool
+for interest-rate risk management and hedging.</div>
+
+```{r}
+# Excel: MDURATION("2008-01-01","2016-01-01",0.08,0.09,2,1) = 5.7355
+mduration("2008-01-01", "2016-01-01", 0.08, 0.09, 2, 1)
+```
+
+---
+
+<div class="fn-card">accrint(issue, first_interest, settlement, rate, par, frequency, basis)</div>
+<div class="purpose">Accrued Interest (Periodic Coupon) — the interest accrued
+on a bond from its issue date to the settlement date. The bond buyer compensates
+the seller for this amount in addition to the clean price, making up the
+"dirty price" paid at settlement.</div>
+
+```{r}
+accrint("2008-03-01", "2008-08-31", "2008-05-01", 0.10, 1000, 2, 0)
+```
+
+---
+
+<div class="fn-card">accrintm(issue, settlement, rate, par, basis)</div>
+<div class="purpose">Accrued Interest at Maturity — for securities that pay
+all interest at maturity rather than periodically, this computes the total
+interest accrued from issue to settlement date.</div>
+
+```{r}
+# Excel: ACCRINTM("2008-04-01","2008-06-15",0.10,1000,3) = 20.54
+accrintm("2008-04-01", "2008-06-15", 0.10, 1000, 3)
+```
+
+---
+
+<div class="fn-card">oddfprice(settlement, maturity, issue, first_coupon, rate, yld, redemption, frequency, basis)</div>
+<div class="purpose">Price with Odd First Period — prices a bond where the
+first coupon period is shorter or longer than a normal period. Common with
+new bond issues where the first coupon covers a partial period from the issue
+date to the first scheduled coupon date.</div>
+
+```{r}
+# Excel: ODDFPRICE(...) = 113.60
+oddfprice("2008-11-11","2021-03-01","2008-10-15","2009-03-01",
+          0.0785, 0.0625, 100, 2, 1)
+```
+
+---
+
+<div class="fn-card">oddfyield(settlement, maturity, issue, first_coupon, rate, pr, redemption, frequency, basis)</div>
+<div class="purpose">Yield with Odd First Period — the yield of a bond with an
+odd first coupon period given its clean price. The inverse of oddfprice().</div>
+
+```{r}
+oddfyield("2008-11-11","2021-03-01","2008-10-15","2009-03-01",
+          0.0785, 113.60, 100, 2, 1)
+```
+
+---
+
+<div class="fn-card">oddlprice(settlement, maturity, last_interest, rate, yld, redemption, frequency, basis)</div>
+<div class="purpose">Price with Odd Last Period — prices a bond where the
+final coupon period is shorter than a normal period (the bond matures between
+two scheduled coupon dates).</div>
+
+```{r}
+# Excel: ODDLPRICE(...) = 99.88
+oddlprice("2008-02-07","2008-06-15","2007-10-15",
+          0.0375, 0.0405, 100, 2, 0)
+```
+
+---
+
+<div class="fn-card">oddlyield(settlement, maturity, last_interest, rate, pr, redemption, frequency, basis)</div>
+<div class="purpose">Yield with Odd Last Period — the yield of a bond with
+an odd last coupon period given its price. The inverse of oddlprice().</div>
+
+```{r}
+# Excel: ODDLYIELD(...) = 4.52%
+oddlyield("2008-04-20","2008-06-15","2007-12-24",
+          0.0375, 99.875, 100, 2, 0)
 ```
 
 ---
 
 ## 🔧 Miscellaneous Functions
 
-### EFFECT and NOMINAL — Effective vs Nominal Rates
+This group covers interest rate conversions, Treasury bill analytics, dollar
+price notation, and investment growth utilities.
+
+---
+
+<div class="fn-card">effect(nominal_rate, npery)</div>
+<div class="purpose">Effective Annual Rate — converts a nominal (stated) annual
+rate to the true effective annual rate, accounting for compounding within the
+year. A 5.25% rate compounded quarterly has a higher effective return than
+5.25% compounded annually. Returns NA if npery = 0.</div>
 
 ```{r}
-# Effective annual rate from 5.25% nominal compounded quarterly
-effect(nominal_rate = 0.0525, npery = 4)
+# Excel: EFFECT(0.0525, 4) = 5.3543%
+effect(0.0525, 4)
 
-# Nominal rate that gives 5.3543% effective when compounded quarterly
-nominal(effect_rate = 0.053543, npery = 4)
+# Guard: npery = 0 returns NA
+effect(0.05, 0)
 ```
 
-### DOLLARDE and DOLLARFR — Fractional Price Notation
+---
 
-US Treasury prices are quoted in 32nds. Convert to and from decimal:
+<div class="fn-card">nominal(effect_rate, npery)</div>
+<div class="purpose">Nominal Annual Rate — the inverse of effect(). Converts
+a known effective annual rate back to its nominal equivalent for a given
+compounding frequency. Used to compare products with different compounding
+periods on a level playing field.</div>
 
 ```{r}
-# 101 + 2/32 = 101.0625
-dollarde(fractional_dollar = 101.02, fraction = 32)
-
-# 101.0625 back to fractional notation
-dollarfr(decimal_dollar = 101.0625, fraction = 32)
+# Excel: NOMINAL(0.053543, 4) = 5.25% — confirms effect() is invertible
+nominal(0.053543, 4)
 ```
 
-### FVSCHEDULE — Variable Rate Schedule
+---
 
-How does $10,000 grow over 3 years with different rates each year?
+<div class="fn-card">dollarde(fractional_dollar, fraction)</div>
+<div class="purpose">Dollar Price: Fraction to Decimal — converts a price
+quoted in fractional notation (standard in US Treasury markets) to a decimal.
+For example, "101-02" means 101 and 2/32nds = 101.0625. Returns NA if
+fraction = 0.</div>
 
 ```{r}
-fvschedule(principal = 10000, schedule = c(0.05, 0.04, 0.06))
+# 1 and 2/16ths = 1.125
+# Excel: DOLLARDE(1.02, 16) = 1.125
+dollarde(1.02, 16)
 ```
 
-### RRI — Equivalent Growth Rate
+---
 
-What annual rate would grow $10,000 to $15,000 over 8 years?
+<div class="fn-card">dollarfr(decimal_dollar, fraction)</div>
+<div class="purpose">Dollar Price: Decimal to Fraction — converts a decimal
+price back to fractional notation. The inverse of dollarde(). Used to present
+bond prices in the conventional Treasury market format.</div>
 
 ```{r}
-rri(nper = 8, pv = 10000, fv = 15000)
+# 1.125 in 16ths = 1 + 2/16, displayed as 1.02
+# Excel: DOLLARFR(1.125, 16) = 1.02
+dollarfr(1.125, 16)
+```
+
+---
+
+<div class="fn-card">fvschedule(principal, schedule)</div>
+<div class="purpose">Future Value with Variable Rates — grows a principal by
+applying a different interest rate each period. Used for variable-rate
+mortgages, bonds with step-up coupons, or any scenario where the rate
+changes over time. Returns NA if the schedule is empty.</div>
+
+```{r}
+# Excel: FVSCHEDULE(1, {0.09, 0.11, 0.10}) = 1.3309
+fvschedule(1, c(0.09, 0.11, 0.10))
+
+# Guard: empty schedule returns NA
+fvschedule(1, numeric(0))
+```
+
+---
+
+<div class="fn-card">rri(nper, pv, fv)</div>
+<div class="purpose">Equivalent Interest Rate — the constant periodic rate
+required to grow a present value to a future value over a given number of
+periods. A simple way to compute Compound Annual Growth Rate (CAGR).
+Returns NA if nper = 0 or pv = 0.</div>
+
+```{r}
+# CAGR: $10,000 to $11,000 over 96 months
+rri(96, 10000, 11000)
+
+# Guard: pv = 0 returns NA
+rri(10, 0, 1000)
+
+# Guard: nper = 0 returns NA
+rri(0, 1000, 2000)
+```
+
+---
+
+<div class="fn-card">pduration(rate, pv, fv)</div>
+<div class="purpose">Periods to Target Value — how many periods at a given
+interest rate does it take to grow a present value to a target? The time
+dimension of a growth calculation — complementary to rri() which solves
+for rate.</div>
+
+```{r}
+# Excel: PDURATION(0.025, 2000, 2200) = 3.8599
+pduration(0.025, 2000, 2200)
+```
+
+---
+
+<div class="fn-card">tbillprice(settlement, maturity, discount)</div>
+<div class="purpose">Treasury Bill Price — the price per $100 face value of
+a US Treasury bill from its annualised discount rate. Uses the 360-day
+convention standard in US money markets.</div>
+
+```{r}
+# Excel: TBILLPRICE("2008-03-31","2008-06-01",0.09) = 98.45
+tbillprice("2008-03-31", "2008-06-01", 0.09)
+```
+
+---
+
+<div class="fn-card">tbillyield(settlement, maturity, pr)</div>
+<div class="purpose">Treasury Bill Yield — the annualised discount yield of a
+T-bill from its price. Uses the 360-day money market convention. The inverse
+of tbillprice().</div>
+
+```{r}
+# Excel: TBILLYIELD("2008-03-31","2008-06-01",98.45) = 9.14%
+tbillyield("2008-03-31", "2008-06-01", 98.45)
+```
+
+---
+
+<div class="fn-card">tbilleq(settlement, maturity, discount)</div>
+<div class="purpose">T-Bill Bond-Equivalent Yield — converts a T-bill's
+discount rate to a bond-equivalent yield (BEY), enabling fair comparison
+with coupon-bearing bonds that use a 365-day year. The formula differs for
+bills under and over 182 days. Returns NA on invalid dates.</div>
+
+```{r}
+# Excel: TBILLEQ("2008-03-31","2008-06-01",0.0914) = 9.42%
+tbilleq("2008-03-31", "2008-06-01", 0.0914)
+
+# Guard: bad date returns NA
+tbilleq("bad-date", "2008-06-01", 0.09)
 ```
 
 ---
 
 ## Using with dplyr
 
-All functions are vectorised and work naturally in `mutate()`:
+All functions work naturally inside `dplyr::mutate()`:
 
 ```{r eval=FALSE}
 library(dplyr)
 
 loans <- data.frame(
-  borrower = c("Alice", "Bob", "Carol"),
-  amount   = c(250000, 180000, 320000),
-  rate_pa  = c(0.035, 0.042, 0.038),
-  years    = c(20, 15, 25)
+  borrower = c("Alice",  "Bob",    "Carol"),
+  amount   = c(250000,   180000,   320000),
+  rate_pa  = c(0.035,    0.042,    0.038),
+  years    = c(20,       15,       25)
 )
 
 loans |>
   mutate(
     monthly_payment = round(pmt(rate_pa/12, years*12, amount, 0, FALSE), 2),
-    total_cost      = round(monthly_payment * years * 12, 0),
-    total_interest  = round(total_cost + amount, 0)
+    total_interest  = round(-cumipmt(rate_pa/12, years*12, amount,
+                                    1, years*12, FALSE), 0),
+    effective_rate  = round(effect(rate_pa, 12) * 100, 3)
   )
 ```
 
@@ -364,22 +1013,20 @@ loans |>
 | Excel | R | Note |
 |-------|---|------|
 | `PMT(rate, nper, pv)` | `pmt(rate, nper, pv, 0, FALSE)` | All args required in R |
-| `YIELD(...)` | `yield_(...)` | Trailing underscore avoids R keyword |
-| `IRR(A1:A6)` | `irr(c(-70000, 12000, ...))` | Pass R vector |
-| `XIRR(vals, dates)` | `xirr(vals, c("2024-01-01", ...))` | Dates as "YYYY-MM-DD" strings |
-| `#NUM!` | `NA` | Invalid input returns NA, not an error |
+| `YIELD(...)` | `yield_(...)` | Trailing `_` avoids R keyword |
+| `IRR(A1:A6)` | `irr(c(-70000, 12000, ...))` | R vector, not cell range |
+| `XIRR(vals, dates)` | `xirr(vals, c("2024-01-01",...))` | Dates as `"YYYY-MM-DD"` |
+| `#NUM!` error | `NA` | Graceful failure, never crashes |
 
 ---
 
 ## Getting Help
 
-Each function has a help page with parameters and examples:
-
 ```{r eval=FALSE}
-?pmt
-?irr
-?price
+?pmt       # Annuity functions
+?irr       # Cash flow functions
+?price     # Bond functions
+?duration  # Duration / risk
 ```
 
-For the full function reference visit the
-[package website](https://tor-storli.github.io/FinancialFunctionsR/).
+Full function reference: [tor-storli.github.io/FinancialFunctionsR](https://tor-storli.github.io/FinancialFunctionsR/)
