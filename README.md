@@ -1,8 +1,10 @@
-# FinancialFunctions <img src="man/figures/logo.png" align="right" height="139" alt="" />
+# FinancialFunctions
 
+**55 Excel-compatible financial functions powered by Rust**
 
-[![R-CMD-check](https://github.com/Tor-Storli/Financial_Functions/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Tor-Storli/Financial_Functions/actions/workflows/R-CMD-check.yaml)
-
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/Tor-Storli/FinancialFunctionsR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Tor-Storli/FinancialFunctionsR/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
 
 **FinancialFunctions** is an R package providing 55 Excel-compatible financial
 functions implemented in Rust via [extendr](https://extendr.github.io). All
@@ -13,7 +15,7 @@ returning `NA` rather than throwing errors.
 
 ```r
 # Install from GitHub (requires remotes)
-remotes::install_github("Tor-Storli/Financial_Functions")
+remotes::install_github("Tor-Storli/FinancialFunctionsR")
 ```
 
 Rust must be installed on your system. Install it from <https://rustup.rs>.
@@ -63,15 +65,6 @@ xirr(
 # Bond price (clean price per $100 face value)
 price("2008-02-15", "2017-11-15", 0.0575, 0.065, 100, 2, 0)
 #> [1] 94.63
-
-# Loan amortization table
-periods <- 1:180
-data.frame(
-  period   = periods,
-  payment  = round(pmt(0.0325/12, 180, 350000, 0, FALSE), 2),
-  interest = round(ipmt(0.0325/12, periods, 180, 350000, 0, FALSE), 2),
-  principal = round(ppmt(0.0325/12, periods, 180, 350000, 0, FALSE), 2)
-)
 ```
 
 ## Key Differences from Excel
@@ -84,6 +77,23 @@ data.frame(
 | `XIRR(A1:A5, B1:B5)` | `xirr(values, c("2024-01-01", ...))` |
 | `TRUE`/`FALSE` | `TRUE`/`FALSE` (same) |
 | `#NUM!` error | `NA` |
+
+## 📺 Tutorial
+
+A step-by-step Quarto tutorial covering how this package was built
+(from a DuckDB Rust extension to a native R package) is available in
+the [`tutorials/`](tutorials/) folder.
+
+Render it in RStudio:
+
+```r
+quarto::quarto_render("tutorials/FinancialFunctions_Tutorial.qmd")
+```
+
+## Documentation
+
+Full function reference and getting started guide:
+<https://tor-storli.github.io/FinancialFunctionsR/>
 
 ## License
 

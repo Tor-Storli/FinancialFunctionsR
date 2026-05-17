@@ -1,0 +1,1272 @@
+---
+title: "Building an R Package with Rust"
+subtitle: "The FinancialFunctions Package — 55 Excel-Compatible Financial Functions"
+author: "Tor Storli and <br> Claude Sonnet 4.6 (Anthropic's AI assistant)"
+date: today
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-title: "📋 Contents"
+    toc-location: left
+    number-sections: true
+    code-fold: false
+    code-tools: true
+    highlight-style: github
+    smooth-scroll: true
+    embed-resources: true
+execute:
+  eval: false
+  echo: true
+---
+
+```{=html}
+<style>
+body { font-family: "Segoe UI", Arial, sans-serif; }
+
+.hero {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: white; padding: 3rem 2rem; border-radius: 12px;
+  margin-bottom: 2rem; text-align: center;
+}
+.hero h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.hero p  { font-size: 1.2rem; opacity: 0.85; }
+.badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px; padding: 4px 14px;
+  font-size: 0.85rem; margin: 4px;
+}
+.step-box {
+  border-left: 5px solid #0f3460; background: #f8faff;
+  padding: 1.2rem 1.5rem; border-radius: 0 10px 10px 0; margin: 1.5rem 0;
+}
+.step-box h3 { color: #0f3460; margin-top: 0; }
+.tip-box {
+  background: #e8f5e9; border-left: 5px solid #4caf50;
+  padding: 1rem 1.5rem; border-radius: 0 8px 8px 0; margin: 1rem 0;
+}
+.warn-box {
+  background: #fff8e1; border-left: 5px solid #ff9800;
+  padding: 1rem 1.5rem; border-radius: 0 8px 8px 0; margin: 1rem 0;
+}
+.error-box {
+  background: #fce4ec; border-left: 5px solid #e91e63;
+  padding: 1rem 1.5rem; border-radius: 0 8px 8px 0; margin: 1rem 0;
+}
+.info-box {
+  background: #e3f2fd; border-left: 5px solid #2196f3;
+  padding: 1rem 1.5rem; border-radius: 0 8px 8px 0; margin: 1rem 0;
+}
+.new-box {
+  background: #f3e5f5; border-left: 5px solid #9c27b0;
+  padding: 1rem 1.5rem; border-radius: 0 8px 8px 0; margin: 1rem 0;
+}
+.arch {
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 0.5rem; padding: 2rem; background: #f8faff;
+  border-radius: 12px; margin: 1.5rem 0; font-size: 1.1rem;
+}
+.arch-box {
+  background: #0f3460; color: white; padding: 0.8rem 1.4rem;
+  border-radius: 8px; text-align: center; min-width: 140px;
+}
+.arch-box.rust  { background: #b7410e; }
+.arch-box.r     { background: #276DC3; }
+.arch-box.excel { background: #217346; }
+.arch-arrow { font-size: 1.5rem; color: #0f3460; }
+.fn-group {
+  background: white; border: 1px solid #e0e0e0;
+  border-radius: 8px; padding: 1rem 1.5rem; margin: 0.5rem 0;
+}
+.fn-group h4 { margin-top: 0; color: #0f3460; }
+.fn-pill {
+  display: inline-block; background: #e3f2fd; color: #0f3460;
+  border-radius: 4px; padding: 2px 8px; font-family: monospace;
+  font-size: 0.85rem; margin: 2px;
+}
+.file-tree {
+  background: #1e1e1e; color: #d4d4d4; padding: 1.5rem;
+  border-radius: 10px; font-family: "Cascadia Code","Consolas",monospace;
+  font-size: 0.9rem; line-height: 1.8;
+}
+.file-tree .dir  { color: #569cd6; }
+.file-tree .new  { color: #4ec9b0; }
+.file-tree .copy { color: #dcdcaa; }
+.file-tree .gen  { color: #9cdcfe; }
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem; margin: 1.5rem 0;
+}
+.card {
+  background: white; border: 1px solid #e0e0e0;
+  border-radius: 10px; padding: 1.2rem; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.card .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.card .num  { font-size: 2rem; font-weight: 700; color: #0f3460; }
+.card .lbl  { font-size: 0.85rem; color: #666; }
+</style>
+```
+
+::: {.hero}
+# 🦀 Building an R Package with Rust
+
+**FinancialFunctions** — From a DuckDB Extension to a Native R Package
+
+::: 
+<span class="badge">🦀 Rust</span>
+<span class="badge">📦 R Package</span>
+<span class="badge">⚡ extendr</span>
+<span class="badge">💰 55 Functions</span>
+<span class="badge">🪟 Windows 11</span>
+:::
+:::
+
+---
+
+## 🎯 Overview
+
+This tutorial walks through building **FinancialFunctions** — an R package
+that exposes 55 Excel-compatible financial functions implemented in Rust,
+achieving native performance while fitting naturally into R workflows.
+
+The key insight: the pure Rust calculation code already existed as a DuckDB
+community extension. By swapping the DuckDB binding layer for **extendr**
+(the R-Rust bridge), we reuse all 55 financial functions without rewriting
+a single line of math.
+
+### Architecture
+
+::: {.arch}
+<div class="arch-box excel">📊 Excel<br><small>Reference formulas</small></div>
+<div class="arch-arrow">→</div>
+<div class="arch-box rust">🦀 Rust calc_*<br><small>Pure math functions</small></div>
+<div class="arch-arrow">→</div>
+<div class="arch-box" style="background:#6a0dad">⚡ extendr<br><small>#[extendr] macros</small></div>
+<div class="arch-arrow">→</div>
+<div class="arch-box r">📦 R Package<br><small>library(FinancialFunctions)</small></div>
+:::
+
+### What We Build
+
+::: {.card-grid}
+<div class="card"><div class="icon">🔢</div><div class="num">55</div><div class="lbl">Financial Functions</div></div>
+<div class="card"><div class="icon">📁</div><div class="num">8</div><div class="lbl">Rust Modules</div></div>
+<div class="card"><div class="icon">🧪</div><div class="num">59</div><div class="lbl">Unit Tests</div></div>
+<div class="card"><div class="icon">⚡</div><div class="num">Rust</div><div class="lbl">Native Speed</div></div>
+:::
+
+### The 55 Functions
+
+::: {.fn-group}
+#### 💰 Annuity (10)
+<span class="fn-pill">fv</span> <span class="fn-pill">pv</span> <span class="fn-pill">pmt</span> <span class="fn-pill">ipmt</span> <span class="fn-pill">ppmt</span> <span class="fn-pill">cumipmt</span> <span class="fn-pill">cumprinc</span> <span class="fn-pill">nper</span> <span class="fn-pill">rate</span> <span class="fn-pill">ispmt</span>
+:::
+::: {.fn-group}
+#### 📈 Cash Flows (5)
+<span class="fn-pill">npv</span> <span class="fn-pill">irr</span> <span class="fn-pill">mirr</span> <span class="fn-pill">xnpv</span> <span class="fn-pill">xirr</span>
+:::
+::: {.fn-group}
+#### 🏭 Depreciation (7)
+<span class="fn-pill">sln</span> <span class="fn-pill">syd</span> <span class="fn-pill">db</span> <span class="fn-pill">ddb</span> <span class="fn-pill">vdb</span> <span class="fn-pill">amorlinc</span> <span class="fn-pill">amordegrc</span>
+:::
+::: {.fn-group}
+#### 🗓️ Coupon Dates (6)
+<span class="fn-pill">coupdaybs</span> <span class="fn-pill">coupdays</span> <span class="fn-pill">coupdaysnc</span> <span class="fn-pill">coupncd</span> <span class="fn-pill">couppcd</span> <span class="fn-pill">coupnum</span>
+:::
+::: {.fn-group}
+#### 🏦 Bonds & Securities (13)
+<span class="fn-pill">price</span> <span class="fn-pill">pricedisc</span> <span class="fn-pill">pricemat</span> <span class="fn-pill">yield_</span> <span class="fn-pill">yielddisc</span> <span class="fn-pill">yieldmat</span> <span class="fn-pill">disc</span> <span class="fn-pill">intrate</span> <span class="fn-pill">received</span> <span class="fn-pill">duration</span> <span class="fn-pill">mduration</span> <span class="fn-pill">accrint</span> <span class="fn-pill">accrintm</span>
+:::
+::: {.fn-group}
+#### 🔧 Miscellaneous (14)
+<span class="fn-pill">effect</span> <span class="fn-pill">nominal</span> <span class="fn-pill">dollarde</span> <span class="fn-pill">dollarfr</span> <span class="fn-pill">fvschedule</span> <span class="fn-pill">rri</span> <span class="fn-pill">pduration</span> <span class="fn-pill">tbillprice</span> <span class="fn-pill">tbillyield</span> <span class="fn-pill">tbilleq</span> <span class="fn-pill">oddfprice</span> <span class="fn-pill">oddfyield</span> <span class="fn-pill">oddlprice</span> <span class="fn-pill">oddlyield</span>
+:::
+
+---
+
+## 🛠️ Prerequisites
+
+### 1️⃣ Install R 4.5+
+
+Download from [CRAN](https://cran.r-project.org/bin/windows/base/).
+
+### 2️⃣ Install Rtools45
+
+Required to compile Rust code on Windows:
+[https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html)
+
+```r
+# Verify Rtools is found
+Sys.which("make")
+# Should return: C:\rtools45\usr\bin\make.exe
+```
+
+### 3️⃣ Install Rust via Rustup
+
+Download from [https://rustup.rs](https://rustup.rs) and run `rustup-init.exe`.
+
+Then add the Windows GNU target — **this is required by R on Windows**:
+
+```bash
+rustup target add x86_64-pc-windows-gnu
+```
+
+::: {.warn-box}
+⚠️ If `rustup` is not found in Git Bash, try running it from PowerShell or use the
+full path: `~/.cargo/bin/rustup target add x86_64-pc-windows-gnu`
+:::
+
+### 4️⃣ Install Required R Packages
+
+```r
+install.packages(c("devtools", "usethis", "rextendr", "testthat", "remotes"))
+```
+
+::: {.info-box}
+ℹ️ On R 4.5 some packages may only be available as source. If you see this
+message, install Rtools45 first and retry — it provides the compiler needed
+to build them.
+:::
+
+### 5️⃣ Configure `.Renviron`
+
+R needs to find the Rust compiler AND the Windows UCRT runtime DLLs.
+Open your `.Renviron` file:
+
+```r
+usethis::edit_r_environ()
+```
+
+Add these lines:
+
+```
+PATH="${USERPROFILE}/.cargo/bin;${PATH}"
+PATH="C:/rtools45/x86_64-w64-mingw32.static.posix/bin;C:/rtools45/usr/bin;${PATH}"
+PATH="C:/Users/YourName/miniconda3/envs/yourenv;${PATH}"
+```
+
+::: {.tip-box}
+💡 **Why miniconda?** On some Windows systems the UCRT runtime DLLs
+(`api-ms-win-crt-*.dll`) needed by Rust live inside a conda environment
+rather than `System32`. Find yours with:
+
+```r
+shell('where api-ms-win-crt-runtime-l1-1-0.dll 2>&1', intern = TRUE)
+```
+
+Add whichever folder it lists to `.Renviron`.
+:::
+
+**Restart RStudio** after editing `.Renviron`. Verify Rust is visible:
+
+```r
+Sys.which("rustc")
+# Should return a path like: C:/Users/YourName/.cargo/bin/rustc.exe
+```
+
+---
+
+## 📁 Step 1 — Create the R Package Skeleton
+
+```r
+library(usethis)
+library(rextendr)
+
+# Create the package folder — opens in a new RStudio project
+usethis::create_package("C:/Users/YourName/Desktop/FinancialFunctionsR")
+```
+
+### Set Up extendr Scaffolding
+
+Inside the new project:
+
+```r
+rextendr::use_extendr()
+```
+
+When asked about overwriting files, answer **No** to everything:
+
+| File | Answer |
+|------|--------|
+| `src/entrypoint.c` | ❌ No |
+| `src/Makevars.in` | ❌ No |
+| `src/Makevars.win.in` | ❌ No |
+| `src/rust/document.rs` | ❌ No |
+
+::: {.info-box}
+ℹ️ We say No to all overwrites because we provide our own versions of these
+files. `rextendr::use_extendr()` is only needed to update the
+`Config/rextendr/version` field in `DESCRIPTION`.
+:::
+
+---
+
+## 📂 Step 2 — File Structure
+
+::: {.file-tree}
+<pre>
+<span class="dir">FinancialFunctionsR/</span>
+├── <span class="new">DESCRIPTION</span>            ← Package metadata
+├── <span class="new">NAMESPACE</span>              ← R exports (auto-generated by roxygen2)
+├── <span class="new">LICENSE</span>
+├── <span class="new">README.md</span>
+├── <span class="new">_pkgdown.yml</span>           ← pkgdown website config
+├── <span class="dir">.github/workflows/</span>
+│   ├── <span class="new">pkgdown.yaml</span>       ← Auto-build website on GitHub
+│   └── <span class="new">R-CMD-check.yaml</span>   ← Run checks on GitHub
+├── <span class="dir">R/</span>
+│   ├── <span class="new">extendr-wrappers.R</span> ← .Call() bridges (written manually)
+│   └── <span class="new">financial_functions-package.R</span>
+├── <span class="dir">vignettes/</span>
+│   └── <span class="new">FinancialFunctions.Rmd</span>  ← Getting started guide
+├── <span class="dir">src/</span>
+│   ├── <span class="new">entrypoint.c</span>
+│   ├── <span class="new">Makevars.in</span>
+│   ├── <span class="new">Makevars.win.in</span>    ← Template (edit this, not Makevars.win)
+│   ├── <span class="gen">Makevars.win</span>       ← Generated at build time — do not edit
+│   ├── <span class="new">FinancialFunctions-win.def</span>
+│   └── <span class="dir">rust/</span>
+│       ├── <span class="new">Cargo.toml</span>
+│       └── <span class="dir">src/</span>
+│           ├── <span class="new">lib.rs</span>             ← extendr wrappers (NEW)
+│           ├── <span class="copy">annuity.rs</span>         ← Copied + DuckDB layer removed
+│           ├── <span class="copy">cash_flows.rs</span>      ← Copied + DuckDB layer removed
+│           ├── <span class="copy">depreciation.rs</span>    ← Copied + DuckDB layer removed
+│           ├── <span class="copy">coupons.rs</span>         ← Copied + DuckDB layer removed
+│           ├── <span class="copy">bonds.rs</span>           ← Copied + DuckDB layer removed
+│           ├── <span class="copy">misc.rs</span>            ← Copied + DuckDB layer removed
+│           ├── <span class="copy">helpers.rs</span>         ← Copied, remove write_f64/read_varchar
+│           └── <span class="copy">errors.rs</span>          ← Copied UNCHANGED (pure Rust)
+└── <span class="dir">tests/</span>
+    ├── testthat.R
+    └── <span class="dir">testthat/</span>
+        ├── test-annuity.R
+        ├── test-cashflows.R
+        └── test-other.R
+</pre>
+:::
+
+---
+
+## ⚙️ Step 3 — Configure Key Files
+
+### `src/rust/Cargo.toml`
+
+```toml
+[package]
+name = "financial-functions"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]      # staticlib not cdylib — critical on Windows
+name = "financial_functions_r"  # linker expects libfinancial_functions_r.a
+
+[dependencies]
+extendr-api = "0.7"
+financial   = "1.1.5"
+chrono      = "0.4"
+
+[profile.release]
+lto       = true
+strip     = true
+opt-level = 3
+```
+
+::: {.warn-box}
+⚠️ **`staticlib` not `cdylib`** is critical. Using `cdylib` produces a
+separate `financial_functions_r.dll` that `FinancialFunctions.dll` depends
+on at runtime — causing a `LoadLibrary failure` when R tries to load the
+package. With `staticlib`, the Rust code is embedded directly into the
+package DLL.
+:::
+
+### `src/entrypoint.c`
+
+```c
+// Forward routine registration from C to Rust.
+// Function name must match: R_init_ + PackageName
+void R_init_financial_functions_extendr(void *dll);
+
+void R_init_FinancialFunctions(void *dll) {
+    R_init_financial_functions_extendr(dll);
+}
+```
+
+::: {.warn-box}
+⚠️ Three names must be consistent across three files:
+
+| File | Name |
+|------|------|
+| `entrypoint.c` | `R_init_FinancialFunctions` |
+| `FinancialFunctions-win.def` | `R_init_FinancialFunctions` |
+| `extendr_module! { mod ... }` | `financial_functions` (snake_case) |
+
+The C function and DEF file use the R package name. The module uses the
+Rust convention (lowercase with underscores).
+:::
+
+### `src/FinancialFunctions-win.def`
+
+```
+EXPORTS
+R_init_FinancialFunctions
+```
+
+### `src/Makevars.win.in` — Remove the `document` binary step
+
+Find and delete these lines (edit the `.in` file, not `Makevars.win`):
+
+```makefile
+# Generate wrappers           ← delete from here
+	export CARGO_HOME=... && \
+	export PATH=... && \
+	cargo run  --bin document ...   ← to here
+```
+
+::: {.tip-box}
+💡 `Makevars.win` is regenerated from `Makevars.win.in` on every build.
+Editing `Makevars.win` directly is futile — your changes disappear immediately.
+Always edit the `.in` template.
+:::
+
+### `R/financial_functions-package.R`
+
+```r
+#' FinancialFunctions: Excel-Compatible Financial Functions Powered by Rust
+#'
+#' @docType package
+#' @name FinancialFunctions-package
+#' @aliases FinancialFunctions
+#' @useDynLib FinancialFunctions
+"_PACKAGE"
+```
+
+::: {.warn-box}
+⚠️ Do **not** use `@useDynLib FinancialFunctions, .registration = TRUE`.
+The `.registration = TRUE` argument causes `getDLLRegisteredRoutines` to fail
+because extendr handles registration differently. Use `@useDynLib FinancialFunctions`
+with no extra arguments.
+:::
+
+---
+
+## 🦀 Step 4 — Copy and Clean the Rust Source Files
+
+Clone your DuckDB extension and copy into `src/rust/src/`:
+
+```bash
+git clone https://github.com/Tor-Storli/Financial_Functions.git
+```
+
+Copy: `annuity.rs`, `cash_flows.rs`, `depreciation.rs`, `coupons.rs`,
+`bonds.rs`, `misc.rs`, `helpers.rs`, **`errors.rs`**
+
+### What to Delete from Each File
+
+::: {.error-box}
+❌ **DELETE** all DuckDB-specific code. In VS Code, search each file for
+`duckdb` — any line containing it must be deleted.
+
+```rust
+// DELETE these import lines
+use duckdb::core::{DataChunkHandle, LogicalTypeHandle, LogicalTypeId};
+use duckdb::vscalar::{ScalarFunctionSignature, VScalar};
+use crate::helpers::write_f64;
+use crate::helpers::read_varchar;
+
+// DELETE these helper functions
+fn dbl() -> LogicalTypeHandle { ... }
+fn varchar() -> LogicalTypeHandle { ... }
+fn bln() -> LogicalTypeHandle { ... }
+fn sig(...) -> ScalarFunctionSignature { ... }
+fn fe(e: FinError) -> Box<dyn Error> { ... }
+
+// DELETE all struct and impl blocks
+pub struct PmtFunction;
+impl VScalar for PmtFunction { ... }
+
+// DELETE all macro invocations
+bond_fn!(DurationFunction, ...);
+coupon_fn!(CoupdaybsFunction, ...);
+scalar_f64!(FvFunction, ...);
+```
+:::
+
+::: {.tip-box}
+✅ **KEEP** all `pub fn calc_*` functions — the pure math stays unchanged.
+
+```rust
+pub fn calc_pmt(rate: f64, nper: f64, pv: f64, fv: f64, pmt_at_beg: bool) -> f64 {
+    // All the math stays exactly as-is
+}
+```
+
+The deletion boundary is always the first `macro_rules!`, `pub struct`,
+or `impl VScalar` — delete from there to the end of the file.
+:::
+
+### Special Cases
+
+**`errors.rs`** — Copy completely **unchanged**. It is 100% pure Rust with
+no DuckDB imports. This file defines the `FinError` enum and all validation
+helpers.
+
+**`helpers.rs`** — Remove only `write_f64` and `read_varchar`. Keep
+`add_months`, `year_frac`, `freq_per_year`, `parse_csv_f64`, `parse_date` etc.
+
+Also remove this unused import if present:
+```rust
+use std::slice;   // ← delete
+```
+
+**`cash_flows.rs`** — The functions called from `lib.rs` must be `pub`.
+Also note the actual function names — they differ from the DuckDB version:
+
+```rust
+// These five must be pub — add the pub keyword
+pub fn npv_calc(rate: f64, values: &[f64]) -> f64 { ... }  // note: npv_calc not calc_npv
+pub fn calc_irr(values: &[f64]) -> f64 { ... }
+pub fn calc_mirr(values: &[f64], finance_rate: f64, reinvest_rate: f64) -> f64 { ... }
+pub fn xnpv_at(values: &[f64], year_fracs: &[f64], rate: f64) -> f64 { ... }  // note: xnpv_at
+pub fn calc_xirr(values: &[f64], dates: &[NaiveDate]) -> f64 { ... }
+
+// These stay private — used only internally
+fn npv_at_zero(values: &[f64], rate: f64) -> f64 { ... }
+fn bisect<F: Fn(f64) -> f64>(...) -> f64 { ... }
+```
+
+**`coupons.rs`** — Also remove these DuckDB-specific parsing helpers:
+
+```rust
+fn parse_coupon_inputs(...) { ... }         // ← delete
+fn parse_coupon_inputs_nobasis(...) { ... } // ← delete
+```
+
+**`bonds.rs`** — Remove these helpers:
+
+```rust
+fn parse_two_dates(...) { ... }    // ← delete
+fn parse_three_dates(...) { ... }  // ← delete
+```
+
+**`misc.rs`** — Remove:
+
+```rust
+fn parse_two_dates_misc(...) { ... } // ← delete
+```
+
+### Update `mod` Declarations in `lib.rs`
+
+```rust
+mod helpers;
+mod errors;       // ← must be declared — errors.rs is used by other modules
+mod annuity;
+mod cash_flows;
+mod depreciation;
+mod coupons;
+mod bonds;
+mod misc;
+```
+
+---
+
+## ⚡ Step 5 — Write `lib.rs` — the extendr Wrappers
+
+This new file replaces all the DuckDB `VScalar` boilerplate with one-line wrappers.
+
+### Top of `lib.rs` — Suppress Warnings
+
+```rust
+// Suppress warnings from unused imports left over in copied DuckDB modules
+#![allow(unused_imports, dead_code, unused_variables)]
+
+use extendr_api::prelude::*;
+use chrono::NaiveDate;
+
+mod helpers;
+mod errors;
+mod annuity;
+mod cash_flows;
+mod depreciation;
+mod coupons;
+mod bonds;
+mod misc;
+
+use annuity::*;
+use crate::cash_flows::{npv_calc, calc_irr, calc_mirr, xnpv_at, calc_xirr};
+use depreciation::*;
+use coupons::*;
+use bonds::*;
+use misc::*;
+```
+
+::: {.info-box}
+ℹ️ `#![allow(unused_imports, dead_code, unused_variables)]` at the top of
+`lib.rs` suppresses the ~49 compiler warnings that come from DuckDB imports
+left in the copied files. Without it the package compiles and works correctly
+but users see alarming-looking warnings during installation.
+:::
+
+### Scalar Functions — 1 Line Each
+
+```rust
+#[extendr]
+fn pmt(rate: f64, nper: f64, pv: f64, fv: f64, pmt_at_beginning: bool) -> f64 {
+    calc_pmt(rate, nper, pv, fv, pmt_at_beginning)
+}
+```
+
+### Vector Functions — R vectors map to `&[f64]`
+
+```rust
+#[extendr]
+fn irr(values: &[f64]) -> f64 {
+    if values.len() < 2 { return f64::NAN; }
+    calc_irr(values)
+}
+```
+
+### NPV and XNPV — Note the actual function names
+
+```rust
+#[extendr]
+fn npv(rate: f64, values: &[f64]) -> f64 {
+    if values.is_empty() { return f64::NAN; }
+    npv_calc(rate, values)   // ← npv_calc, not calc_npv
+}
+
+#[extendr]
+fn xnpv(rate: f64, values: &[f64], dates: Vec<String>) -> f64 {
+    if values.len() != dates.len() || values.is_empty() { return f64::NAN; }
+    let parsed: Vec<NaiveDate> = dates.iter()
+        .filter_map(|s| NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok())
+        .collect();
+    if parsed.len() != values.len() { return f64::NAN; }
+    let d0 = parsed[0];
+    let yf: Vec<f64> = parsed.iter()
+        .map(|&d| (d - d0).num_days() as f64 / 365.0)
+        .collect();
+    xnpv_at(values, &yf, rate)   // ← xnpv_at(values, year_fracs, rate) — note argument order
+}
+```
+
+::: {.warn-box}
+⚠️ `xnpv_at` takes arguments in the order `(values, year_fracs, rate)` —
+not `(rate, values, year_fracs)`. Getting this wrong causes a Rust compile
+error: "arguments to this function are incorrect".
+:::
+
+### Date Functions — Accept `Vec<String>`
+
+```rust
+#[extendr]
+fn xirr(values: &[f64], dates: Vec<String>) -> f64 {
+    if values.len() != dates.len() || values.len() < 2 { return f64::NAN; }
+    let parsed: Vec<NaiveDate> = dates.iter()
+        .filter_map(|s| NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok())
+        .collect();
+    if parsed.len() != values.len() { return f64::NAN; }
+    calc_xirr(values, &parsed)
+}
+```
+
+### Coupon Functions — Prefix Unused `basis` with `_`
+
+Three coupon functions (`coupncd`, `couppcd`, `coupnum`) accept a `basis`
+parameter for API consistency but don't use it. Prefix with `_` to suppress
+the warning:
+
+```rust
+#[extendr]
+fn coupncd(settlement: &str, maturity: &str, frequency: f64, _basis: f64) -> f64 {
+    // _basis is intentionally unused — coupncd doesn't depend on day-count convention
+}
+```
+
+### `extendr_module!` — Register All 55 Functions
+
+```rust
+extendr_module! {
+    mod financial_functions;
+    fn fv; fn pv; fn pmt; fn ipmt; fn ppmt;
+    fn cumipmt; fn cumprinc; fn nper; fn rate; fn ispmt;
+    fn npv; fn irr; fn mirr; fn xnpv; fn xirr;
+    fn sln; fn syd; fn db; fn ddb; fn vdb;
+    fn amorlinc; fn amordegrc;
+    fn coupdaybs; fn coupdays; fn coupdaysnc;
+    fn coupncd; fn couppcd; fn coupnum;
+    fn price; fn pricedisc; fn pricemat;
+    fn yield_; fn yielddisc; fn yieldmat;
+    fn disc; fn intrate; fn received;
+    fn duration; fn mduration;
+    fn accrint; fn accrintm;
+    fn oddfprice; fn oddfyield; fn oddlprice; fn oddlyield;
+    fn effect; fn nominal; fn dollarde; fn dollarfr;
+    fn fvschedule; fn rri; fn pduration;
+    fn tbillprice; fn tbillyield; fn tbilleq;
+}
+```
+
+---
+
+## 🔧 Step 6 — Write `R/extendr-wrappers.R`
+
+Because we removed the `document` binary step, R wrappers must be written
+manually. Each function calls the Rust C symbol by its **quoted name**:
+
+```r
+# Generated by extendr: Do not edit by hand
+# nolint start
+#' @usage NULL
+#' @useDynLib FinancialFunctions
+NULL
+
+#' Periodic Payment
+#' @export
+pmt <- function(rate, nper, pv, fv, pmt_at_beginning) {
+    .Call("wrap__pmt", rate, nper, pv, fv, pmt_at_beginning)
+}
+
+#' Internal Rate of Return
+#' @export
+irr <- function(values) .Call("wrap__irr", values)
+
+#' IRR with Irregular Dates
+#' @export
+xirr <- function(values, dates) .Call("wrap__xirr", values, dates)
+
+# ... all 55 functions
+# nolint end
+```
+
+::: {.warn-box}
+⚠️ **Quotes are mandatory.** `.Call("wrap__pmt", ...)` works.
+`.Call(wrap__pmt, ...)` without quotes fails with
+`Error: object 'wrap__pmt' not found` because R looks for an R object
+named `wrap__pmt` — which doesn't exist.
+:::
+
+### Verify Symbol Names Before Writing
+
+After a successful build, confirm the exact exported symbol names:
+
+```r
+shell('objdump -t "src/FinancialFunctions.dll" 2>&1', intern = TRUE) |>
+    grep("wrap__", x = _, value = TRUE)
+```
+
+All 55 `wrap__*` symbols should appear. If any are missing, check the
+`extendr_module!` block in `lib.rs`.
+
+### Add Titles So pkgdown Can Index Functions
+
+Every function needs at least a title line for pkgdown to recognise it:
+
+```r
+#' Future Value
+#' @export
+fv <- function(...) .Call("wrap__fv", ...)
+
+#' Present Value
+#' @export
+pv <- function(...) .Call("wrap__pv", ...)
+```
+
+---
+
+## 🏗️ Step 7 — Build the Package
+
+### First Build
+
+```r
+devtools::document()   # Compiles Rust + generates R documentation
+devtools::load_all()   # Loads into current R session
+```
+
+The first compile downloads all Cargo dependencies and takes 2–5 minutes.
+Subsequent incremental builds complete in under 30 seconds.
+
+### Verify It Works
+
+```r
+pmt(0.0325/12, 180, 350000, 0, FALSE)      # -2459.341
+irr(c(-70000, 12000, 15000, 18000, 21000, 26000))   # 0.0866
+price("2008-02-15", "2017-11-15", 0.0575, 0.065, 100, 2, 0)  # 94.63
+xirr(c(-10000, 2750, 4250, 3250, 2750),
+     c("2008-01-01","2008-03-01","2008-10-30","2009-02-15","2009-04-01"))  # 0.3734
+```
+
+---
+
+## 🧪 Step 8 — Run the Test Suite
+
+```r
+devtools::test()
+```
+
+Expected output:
+
+```
+✓ | OK F W S | Context
+✓ | 22       | annuity functions [1.2s]
+✓ | 12       | cash flow functions [0.8s]
+✓ | 25       | other functions [0.5s]
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 59 ]
+```
+
+---
+
+## 📖 Step 9 — Add a Vignette
+
+A vignette gives users a long-form guide with examples of every function group.
+
+```r
+# Create the vignette
+usethis::use_vignette("FinancialFunctions",
+                       title = "Getting Started with FinancialFunctions")
+
+# Add required packages to DESCRIPTION
+usethis::use_package("knitr",     type = "Suggests")
+usethis::use_package("rmarkdown", type = "Suggests")
+```
+
+Replace the generated `vignettes/FinancialFunctions.Rmd` with your
+comprehensive guide covering all 55 functions.
+
+::: {.warn-box}
+⚠️ Functions like `ipmt`, `ppmt`, `syd`, `ddb` accept scalar `per` arguments —
+they do not accept integer vectors. When building tables inside a vignette,
+use `sapply()`:
+
+```r
+# WRONG — passes an integer vector to a scalar argument
+ipmt(0.04/12, 1:12, 360, 300000, 0, FALSE)
+
+# CORRECT — iterates with sapply
+sapply(1:12, function(p) ipmt(0.04/12, p, 360, 300000, 0, FALSE))
+```
+:::
+
+---
+
+## 🌐 Step 10 — Set Up pkgdown Website
+
+pkgdown builds a full documentation website from your R docs and vignette.
+
+```r
+install.packages("pkgdown")
+usethis::use_pkgdown()   # creates _pkgdown.yml
+```
+
+Configure `_pkgdown.yml` to group functions by category with icons in the
+function reference:
+
+```yaml
+url: https://tor-storli.github.io/FinancialFunctionsR/
+
+template:
+  bootstrap: 5
+  bootswatch: cosmo
+
+reference:
+  - title: "💰 Annuity Functions"
+    contents: [fv, pv, pmt, ipmt, ppmt, cumipmt, cumprinc, nper, rate, ispmt]
+
+  - title: "📈 Cash Flow Functions"
+    contents: [npv, irr, mirr, xnpv, xirr]
+
+  - title: "🏭 Depreciation Functions"
+    contents: [sln, syd, db, ddb, vdb, amorlinc, amordegrc]
+
+  - title: "🗓️ Coupon Date Functions"
+    contents: [coupdaybs, coupdays, coupdaysnc, coupncd, couppcd, coupnum]
+
+  - title: "🏦 Bond & Security Functions"
+    contents: [price, pricedisc, pricemat, yield_, yielddisc, yieldmat,
+               disc, intrate, received, duration, mduration,
+               accrint, accrintm, oddfprice, oddfyield, oddlprice, oddlyield]
+
+  - title: "🔧 Miscellaneous Functions"
+    contents: [effect, nominal, dollarde, dollarfr, fvschedule, rri,
+               pduration, tbillprice, tbillyield, tbilleq]
+```
+
+### Build the Site Locally
+
+```r
+options(pkgdown.internet = FALSE)  # avoids network errors behind proxies
+pkgdown::build_site()
+```
+
+---
+
+## 🚀 Step 11 — Publish to GitHub
+
+### Create the Repository First
+
+1. Go to **https://github.com/Tor-Storli**
+2. Click **New** → name it `FinancialFunctionsR`
+3. ⚠️ Leave **all checkboxes unchecked** — the repo must be completely empty
+
+### Configure `.gitignore`
+
+Your repo should already have a `.gitignore`. Make sure it includes:
+
+```
+src/rust/target/    # Rust build artifacts — can be 1-2 GB
+src/Makevars.win    # Auto-generated — never commit
+.Rproj.user
+src/rust/vendor
+```
+
+Add `src/rust/target/` if missing:
+
+```bash
+echo "src/rust/target/" >> .gitignore
+```
+
+### Push to GitHub (RStudio Terminal)
+
+```bash
+# 1. Initialise git
+git init
+
+# 2. Set identity (first time only)
+git config --global user.name "Tor Storli"
+git config --global user.email "your@email.com"
+
+# 3. Stage all files
+git add .
+
+# 4. First commit
+git commit -m "Initial release — 55 Excel financial functions in Rust"
+
+# 5. Rename branch to main
+git branch -M main
+
+# 6. Connect to GitHub
+git remote add origin https://github.com/Tor-Storli/FinancialFunctionsR.git
+
+# 7. Push
+git push -u origin main
+```
+
+::: {.tip-box}
+💡 When Git asks for credentials use your GitHub username and a
+**Personal Access Token** (not your password).
+Generate one at: **GitHub → Settings → Developer Settings → Personal Access Tokens → Classic**
+with the `repo` scope checked.
+:::
+
+::: {.warn-box}
+⚠️ **SSL certificate error on Windows corporate networks:**
+
+```bash
+# Fix by switching to the Windows certificate store
+git config --global http.sslBackend schannel
+git push
+```
+:::
+
+### Fix `configure` File Permissions for GitHub Actions
+
+::: {.new-box}
+🆕 **Windows-specific issue:** Git on Windows doesn't track Unix executable
+permissions. The `configure` file loses its executable bit when pushed, causing
+GitHub Actions to fail with:
+
+```
+ERROR: 'configure' exists but is not executable
+```
+
+Fix with (runs from Windows — no Unix needed):
+
+```bash
+git update-index --chmod=+x configure
+git update-index --chmod=+x configure.win
+git add configure configure.win
+git commit -m "Fix configure file permissions for GitHub Actions"
+git push
+```
+:::
+
+---
+
+## ⚙️ Step 12 — GitHub Actions (CI/CD)
+
+### R-CMD-check Badge
+
+```r
+usethis::use_github_action("check-standard")
+```
+
+This creates `.github/workflows/R-CMD-check.yaml` and enables the green
+✅ badge on your README.
+
+### pkgdown Auto-Deploy
+
+Create `.github/workflows/pkgdown.yaml`:
+
+```yaml
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+name: pkgdown
+permissions:
+  contents: write
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies
+        run: sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
+      - name: Install R dependencies
+        run: install.packages(c("pkgdown","remotes","rmarkdown","knitr","devtools"))
+        shell: Rscript {0}
+      - name: Build package
+        run: R CMD build --no-manual .
+      - name: Install package
+        run: |
+          pkg <- list.files(".", pattern="\\.tar\\.gz$", full.names=TRUE)[1]
+          install.packages(pkg, repos=NULL, type="source")
+        shell: Rscript {0}
+      - name: Build pkgdown site
+        run: |
+          options(pkgdown.internet = FALSE)
+          pkgdown::build_site_github_pages(new_process=FALSE, install=FALSE)
+        shell: Rscript {0}
+      - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs
+```
+
+::: {.info-box}
+ℹ️ **Why not use `extra-packages: local::.`?** The standard `r-lib/actions/setup-r-dependencies`
+action with `local::.` fails for Rust packages because it tries to install your
+package before Rust is configured. The manual approach above — build, then
+install the `.tar.gz`, then run pkgdown — works reliably.
+:::
+
+Enable GitHub Pages: **Repo → Settings → Pages → Source → GitHub Actions**
+
+Your site will be live at:
+```
+https://tor-storli.github.io/FinancialFunctionsR/
+```
+
+---
+
+## 🐛 Troubleshooting Guide
+
+### 🔴 `rustc not found` in RStudio
+
+```r
+usethis::edit_r_environ()
+# Add: PATH="${USERPROFILE}/.cargo/bin;${PATH}"
+# Restart RStudio
+```
+
+### 🔴 `rustup: command not found` in Git Bash
+
+```powershell
+# Run from PowerShell instead
+rustup target add x86_64-pc-windows-gnu
+```
+
+### 🔴 `x86_64-pc-windows-gnu target not installed`
+
+```bash
+rustup target add x86_64-pc-windows-gnu
+```
+
+### 🔴 `cannot find -lfinancial_functions_r`
+
+In `Cargo.toml`:
+```toml
+[lib]
+crate-type = ["staticlib"]
+name = "financial_functions_r"
+```
+
+### 🔴 `LoadLibrary failure: The specified module could not be found`
+
+The UCRT DLLs aren't on R's PATH. Locate them:
+
+```r
+shell('where api-ms-win-crt-runtime-l1-1-0.dll 2>&1', intern = TRUE)
+```
+
+Add the folder to `.Renviron` and restart RStudio.
+
+### 🔴 `financial_functions_r.dll` dependency in built DLL
+
+You have an old `cdylib` artifact cached. Delete and rebuild:
+
+```r
+unlink("src/rust/target", recursive = TRUE)
+file.remove("src/FinancialFunctions.dll")
+devtools::document()
+```
+
+### 🔴 `no bin target named 'document'`
+
+Edit `src/Makevars.win.in` (not `Makevars.win`) and remove the lines
+containing `cargo run --bin document`.
+
+### 🔴 `object 'wrap__pmt' not found`
+
+Add quotes: `.Call("wrap__pmt", ...)` not `.Call(wrap__pmt, ...)`.
+
+### 🔴 `must specify DLL via a "DLLInfo" object`
+
+Check `NAMESPACE` has exactly one `useDynLib` line without `.registration = TRUE`:
+
+```r
+useDynLib(FinancialFunctions)
+exportPattern("^[^\\.]")
+```
+
+Also check `R/extendr-wrappers.R` — the `@useDynLib` tag must not have
+`.registration = TRUE`.
+
+### 🔴 `unresolved import crate::errors`
+
+Add `mod errors;` to `lib.rs` module declarations.
+
+### 🔴 `unresolved imports crate::cash_flows::calc_npv, calc_xnpv`
+
+The actual function names differ from what you might expect. Use:
+
+```rust
+use crate::cash_flows::{npv_calc, calc_irr, calc_mirr, xnpv_at, calc_xirr};
+//                       ^^^^^^^^                       ^^^^^^^
+//                       not calc_npv                   not calc_xnpv
+```
+
+### 🔴 `arguments to this function are incorrect` for `xnpv_at`
+
+The argument order is `xnpv_at(values, year_fracs, rate)` — not
+`xnpv_at(rate, values, year_fracs)`.
+
+### 🔴 Compiler warnings about unused imports
+
+Add to the top of `lib.rs`:
+
+```rust
+#![allow(unused_imports, dead_code, unused_variables)]
+```
+
+### 🔴 `ERROR: 'configure' exists but is not executable` (GitHub Actions)
+
+```bash
+git update-index --chmod=+x configure
+git update-index --chmod=+x configure.win
+git add configure configure.win
+git commit -m "Fix configure permissions"
+git push
+```
+
+### 🔴 `setup-r-dependencies` fails in pkgdown GitHub Action
+
+Don't use `extra-packages: local::.` for Rust packages. Build and install
+manually — see the pkgdown workflow in Step 12.
+
+### 🔴 `SSL certificate problem` on `git push`
+
+```bash
+git config --global http.sslBackend schannel
+git push
+```
+
+### 🔴 `rextendr::document()` deprecated warning
+
+Use `devtools::document()` instead. The `rextendr::document()` function was
+deprecated in rextendr 0.4.0.
+
+---
+
+## 📊 Key Concepts Summary
+
+### DuckDB vs R — What Changes
+
+| Aspect | DuckDB Extension | R Package |
+|--------|-----------------|-----------|
+| **Binding crate** | `duckdb` | `extendr-api` |
+| **Function wrapper** | `impl VScalar` (~30 lines) | `#[extendr]` (1 line) |
+| **Calc functions** | ✅ Unchanged | ✅ Unchanged |
+| **CSV string inputs** | `irr('-70000,12000')` | `irr(c(-70000, 12000))` |
+| **Date inputs** | CSV string | `Vec<String>` parsed in wrapper |
+| **Bad input** | Returns `NULL` | Returns `NA` (`f64::NAN`) |
+| **Library type** | `cdylib` | `staticlib` |
+| **`errors.rs`** | Actively used | Copied unchanged — still needed |
+| **`write_f64`** | Required | Delete — not needed |
+| **`read_varchar`** | Required | Delete — not needed |
+
+### The extendr Macro Magic
+
+```rust
+#[extendr]                                  // ← This single attribute...
+fn pmt(rate: f64, nper: f64, ...) -> f64 { // ← ...generates all C glue
+    calc_pmt(rate, nper, ...)               // ← Pure math, unchanged
+}
+```
+
+The `#[extendr]` macro automatically:
+
+- Generates `wrap__pmt` C entry point
+- Handles R ↔ Rust type conversion
+- Converts `f64::NAN` → R `NA`
+- Registers the function via `extendr_module!`
+
+---
+
+## 🎓 Further Reading
+
+- **extendr:** [https://extendr.github.io](https://extendr.github.io)
+- **rextendr:** [https://extendr.github.io/rextendr](https://extendr.github.io/rextendr)
+- **DuckDB extension:** [https://github.com/Tor-Storli/Financial_Functions](https://github.com/Tor-Storli/Financial_Functions)
+- **R package:** [https://github.com/Tor-Storli/FinancialFunctionsR](https://github.com/Tor-Storli/FinancialFunctionsR)
+- **Package website:** [https://tor-storli.github.io/FinancialFunctionsR](https://tor-storli.github.io/FinancialFunctionsR)
+- **Rustup:** [https://rustup.rs](https://rustup.rs)
+
+---
+
+::: {.hero}
+### 🎉 You Did It!
+
+You built a production-grade R package with 55 Excel-compatible financial
+functions running at native Rust speed — reusing every line of calculation
+code from your DuckDB extension, publishing it to GitHub, and deploying
+a full documentation website.
+
+**The key takeaway:** extendr makes the Rust → R boundary almost invisible.
+The hard work is the math. Write it once in Rust, deploy it everywhere.
+
+<span class="badge">🦀 Rust powers the math</span>
+<span class="badge">⚡ extendr bridges to R</span>
+<span class="badge">📦 R packages it up</span>
+<span class="badge">🌐 pkgdown publishes it</span>
+<span class="badge">🤖 GitHub Actions maintains it</span>
+:::
