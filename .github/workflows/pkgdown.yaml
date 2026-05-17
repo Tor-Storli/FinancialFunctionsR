@@ -41,7 +41,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Build package
-        run: R CMD build --no-manual .
+        run: R CMD build --no-manual --no-build-vignettes .
 
       - name: Install package
         run: |
