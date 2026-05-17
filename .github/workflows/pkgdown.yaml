@@ -1,25 +1,22 @@
-# Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
-# Builds and deploys pkgdown site to GitHub Pages on every push to main
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  release:
-    types: [published]
   workflow_dispatch:
 
 name: pkgdown
 
 permissions:
   contents: write
+  pages: write
 
 jobs:
   pkgdown:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -32,19 +29,39 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::pkgdown, local::.
-          needs: website
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
 
-      - name: Build site
-        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+      - name: Install R dependencies
+        run: |
+          install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
+                             "devtools", "desc"))
         shell: Rscript {0}
 
-      - name: Deploy to GitHub pages
+      - name: Build package
+        run: R CMD build --no-manual .
+
+      - name: Install package
+        run: |
+          pkg <- list.files(".", pattern = "\\.tar\\.gz$", full.names = TRUE)[1]
+          install.packages(pkg, repos = NULL, type = "source")
+        shell: Rscript {0}
+
+      - name: Build pkgdown site
+        run: |
+          options(pkgdown.internet = FALSE)
+          pkgdown::build_site_github_pages(
+            new_process = FALSE,
+            install     = FALSE
+          )
+        shell: Rscript {0}
+
+      - name: Deploy to GitHub Pages
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4.5.0
         with:
-          clean: false
+          clean:  false
           branch: gh-pages
           folder: docs
