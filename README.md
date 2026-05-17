@@ -1,8 +1,8 @@
 # FinancialFunctions <img src="man/figures/logo.png" align="right" height="139" alt="" />
 
-<!-- badges: start -->
+
 [![R-CMD-check](https://github.com/Tor-Storli/Financial_Functions/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Tor-Storli/Financial_Functions/actions/workflows/R-CMD-check.yaml)
-<!-- badges: end -->
+
 
 **FinancialFunctions** is an R package providing 55 Excel-compatible financial
 functions implemented in Rust via [extendr](https://extendr.github.io). All
