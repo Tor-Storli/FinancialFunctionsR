@@ -12,8 +12,32 @@ permissions:
   pages: write
 
 jobs:
+  # ── Build check on macOS ──────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install R dependencies
+        run: install.packages(c("remotes", "devtools"))
+        shell: Rscript {0}
+      - name: Build and check package
+        run: |
+          R CMD build --no-manual --no-build-vignettes .
+          pkg <- list.files(".", pattern = "\\.tar\\.gz$", full.names = TRUE)[1]
+          install.packages(pkg, repos = NULL, type = "source")
+          library(FinancialFunctions)
+          cat("Mac build OK — pmt:", pmt(0.0325/12, 180, 350000, 0, FALSE), "\n")
+        shell: Rscript {0}
+
+  # ── Build pkgdown site on Windows and deploy ──────────────────────────────
   pkgdown:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    needs: build-mac          # only deploy if Mac build passes too
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
@@ -26,13 +50,17 @@ jobs:
         with:
           use-public-rspm: true
 
+      - name: Install Rtools45
+        run: |
+          choco install rtools --version=4.5.0 -y
+          echo "C:\rtools45\usr\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "C:\rtools45\x86_64-w64-mingw32.static.posix\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev libcurl4-openssl-dev libxml2-dev
+        with:
+          targets: x86_64-pc-windows-gnu
 
       - name: Install R dependencies
         run: |
@@ -40,24 +68,23 @@ jobs:
                              "devtools", "desc", "roxygen2"))
         shell: Rscript {0}
 
-      - name: Build package (no vignettes, no manual)
+      - name: Build package
         run: R CMD build --no-manual --no-build-vignettes .
+        shell: cmd
 
       - name: Install built package
         run: |
           pkg <- list.files(".", pattern = "\\.tar\\.gz$", full.names = TRUE)
           if (length(pkg) == 0) stop("No .tar.gz found!")
-          cat("Installing:", pkg[1], "\n")
           install.packages(pkg[1], repos = NULL, type = "source")
-          cat("Installed packages:\n")
-          print(installed.packages()[, "Package"])
+          stopifnot("FinancialFunctions" %in% rownames(installed.packages()))
+          cat("Installed successfully\n")
         shell: Rscript {0}
 
       - name: Verify package loads
         run: |
           library(FinancialFunctions)
-          cat("Package loaded successfully\n")
-          cat("pmt result:", pmt(0.0325/12, 180, 350000, 0, FALSE), "\n")
+          cat("pmt:", pmt(0.0325/12, 180, 350000, 0, FALSE), "\n")
         shell: Rscript {0}
 
       - name: Build pkgdown site
