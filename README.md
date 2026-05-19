@@ -13,9 +13,30 @@ returning `NA` rather than throwing errors.
 
 ## Installation
 
+### Prerequisites
+
+This package compiles Rust code from source. Before installing you need:
+
+**Windows:**
+1. [Rust](https://rustup.rs) — download and run `rustup-init.exe`
+2. [Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html)
+
+**macOS:**
+1. [Rust](https://rustup.rs) — run in Terminal:
+   `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+
+### Install from GitHub
+
 ```r
-# Install from GitHub (requires remotes)
 remotes::install_github("Tor-Storli/FinancialFunctionsR")
+```
+
+### Verify installation
+
+```r
+library(FinancialFunctions)
+pmt(0.0325/12, 180, 350000, 0, FALSE)
+#> [1] -2459.341
 ```
 
 Rust must be installed on your system. Install it from <https://rustup.rs>.
