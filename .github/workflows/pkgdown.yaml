@@ -10,6 +10,7 @@ name: pkgdown
 permissions:
   contents: write
   pages: write
+  id-token: write
 
 jobs:
   # ── Build check on macOS ──────────────────────────────────────────────────
@@ -36,7 +37,6 @@ jobs:
         run: |
           pkg <- list.files(".", pattern = "\\.tar\\.gz$", full.names = TRUE)[1]
           if (is.na(pkg)) stop("No .tar.gz found — build failed!")
-          cat("Installing:", pkg, "\n")
           install.packages(pkg, repos = NULL, type = "source")
           stopifnot("FinancialFunctions" %in% rownames(installed.packages()))
           cat("Install OK\n")
@@ -48,8 +48,8 @@ jobs:
           cat("Mac build OK — pmt:", pmt(0.0325/12, 180, 350000, 0, FALSE), "\n")
         shell: Rscript {0}
 
-  # ── Build pkgdown site on Windows and deploy ──────────────────────────────
-  pkgdown:
+  # ── Build pkgdown site on Windows ────────────────────────────────────────
+  build-site:
     runs-on: windows-2022
     needs: build-mac
     env:
@@ -104,10 +104,37 @@ jobs:
           )
         shell: Rscript {0}
 
-      - name: Deploy to GitHub Pages
-        if: github.event_name != 'pull_request'
-        uses: JamesIves/github-pages-deploy-action@v4.5.0
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v4
         with:
-          clean:  false
-          branch: gh-pages
-          folder: docs
+          name: pkgdown-site
+          path: docs/
+          retention-days: 1
+
+  # ── Deploy to GitHub Pages from Ubuntu ───────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-site
+    if: github.event_name != 'pull_request'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download site artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pkgdown-site
+          path: docs/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
