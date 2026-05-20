@@ -18,17 +18,24 @@ returning `NA` rather than throwing errors.
 This package compiles Rust code from source. Before installing you need:
 
 **Windows:**
-1. [Rust](https://rustup.rs) — download and run `rustup-init.exe`
+1. [Rust](https://rustup.rs) — download and run `rustup-init.exe`   
 2. [Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html)
 
 **macOS:**
-1. [Rust](https://rustup.rs) — run in Terminal:
+1. [Rust](https://rustup.rs) — run in Terminal:   
    `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 
 ### Install from GitHub
 
 ```r
-remotes::install_github("Tor-Storli/FinancialFunctionsR")
+remotes::install_github("Tor-Storli/FinancialFunctionsR",
+                         build_vignettes = TRUE)
+```
+
+After installation, browse the vignette:
+
+```r
+browseVignettes("FinancialFunctions")
 ```
 
 ### Verify installation
@@ -115,6 +122,10 @@ quarto::quarto_render("tutorials/FinancialFunctions_Tutorial.qmd")
 
 Full function reference and getting started guide:
 <https://tor-storli.github.io/FinancialFunctionsR/>
+
+- **Getting Started:** <https://tor-storli.github.io/FinancialFunctionsR/articles/FinancialFunctions.html>
+- **Function Reference:** <https://tor-storli.github.io/FinancialFunctionsR/reference/>
+- **Package Website:** <https://tor-storli.github.io/FinancialFunctionsR/>
 
 ## License
 
