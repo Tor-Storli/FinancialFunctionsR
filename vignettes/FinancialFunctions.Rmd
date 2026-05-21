@@ -162,13 +162,20 @@ ppmt(0.10/12, 1, 24, 2000, 0, FALSE)
 **Full amortisation schedule — first 6 months of a $350,000 mortgage:**
 
 ```{r}
+options(max.print = 999999)
+
 periods <- 1:6
-data.frame(
-  Period    = periods,
-  Payment   = round(pmt(0.0325/12, 180, 350000, 0, FALSE), 2),
-  Interest  = round(sapply(periods, function(p) ipmt(0.0325/12, p, 180, 350000, 0, FALSE)), 2),
-  Principal = round(sapply(periods, function(p) ppmt(0.0325/12, p, 180, 350000, 0, FALSE)), 2)
+df <- data.frame(
+  Period       = periods,
+  Payment      = round(pmt(0.0325/12, 180, 350000, 0, FALSE), 2),
+  Interest     = round(sapply(periods, function(p) ipmt(0.0325/12, p, 180, 350000, 0, FALSE)), 2),
+  CumInterest  = round(sapply(periods, function(p) cumipmt(0.0325/12, 180, 350000, 1, p, FALSE)), 2),
+  Principal    = round(sapply(periods, function(p) ppmt(0.0325/12, p, 180, 350000, 0, FALSE)), 2),
+  CumPrincipal = round(sapply(periods, function(p) cumprinc(0.0325/12, 180, 350000, 1, p, FALSE)), 2)
 )
+
+df$Balance <- round(350000 + df$CumPrincipal, 2)
+df
 ```
 
 ---
