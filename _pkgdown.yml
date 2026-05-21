@@ -19,6 +19,9 @@ navbar:
     intro:
       text: "Get Started"
       href: articles/FinancialFunctions.html
+    tutorial:
+      text: "Tutorial"
+      href: articles/FinancialFunctions_Tutorial.html
     github:
       icon: fab fa-github
       href: https://github.com/Tor-Storli/FinancialFunctionsR
