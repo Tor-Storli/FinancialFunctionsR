@@ -1015,6 +1015,69 @@ loans |>
 
 ---
 
+## Batch Functions — Processing Large Datasets
+
+When you need to calculate IRR, NPV, or other functions for thousands of
+scenarios, calling the scalar functions inside `sapply()` pays R's
+function-call overhead on every iteration. The batch variants cross the
+R-Rust boundary only once and process all inputs natively in Rust.
+
+### IRR for Multiple Projects
+
+```{r}
+# Evaluate 5 investment projects at once
+projects <- list(
+  ProjectA = c(-100000, 30000, 35000, 40000, 45000),
+  ProjectB = c(-200000, 50000, 60000, 70000, 80000, 90000),
+  ProjectC = c(-50000,  20000, 20000, 20000),
+  ProjectD = c(-150000, 40000, 45000, 50000, 55000, 60000),
+  ProjectE = c(-75000,  25000, 30000, 35000, 40000)
+)
+irr_batch(projects)
+```
+
+### NPV Sensitivity at Different Discount Rates
+
+```{r}
+# Same projects, NPV at different hurdle rates
+npv_batch(0.08, projects)
+npv_batch(0.12, projects)
+```
+
+### Bond Price/Yield Curve
+
+```{r}
+# Price a 10-year bond across 1,000 yield levels — one Rust call
+yields <- seq(0.02, 0.10, length.out = 1000)
+prices <- price_curve("2024-01-01", "2034-01-01",
+                       rate = 0.05, ylds = yields,
+                       redemption = 100, frequency = 2, basis = 0)
+
+# Show a few points
+data.frame(
+  Yield = round(yields[c(1, 250, 500, 750, 1000)], 4),
+  Price = round(prices[c(1, 250, 500, 750, 1000)], 4)
+)
+```
+
+### Compare Multiple Mortgage Scenarios at Once
+
+```{r}
+# pmt_vec accepts vectors — no sapply needed
+amounts <- c(200000, 300000, 400000, 500000)
+rates   <- c(0.03, 0.035, 0.04, 0.045) / 12
+terms   <- c(180, 240, 300, 360)
+
+data.frame(
+  Amount  = amounts,
+  Rate_pa = rates * 12,
+  Years   = terms / 12,
+  Payment = round(pmt_vec(rates, terms, amounts, 0, FALSE), 2)
+)
+```
+
+---
+
 ## Key Differences from Excel
 
 | Excel | R | Note |

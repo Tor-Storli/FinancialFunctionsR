@@ -94,6 +94,32 @@ xirr(
 price("2008-02-15", "2017-11-15", 0.0575, 0.065, 100, 2, 0)
 #> [1] 94.63
 ```
+## Batch Functions — High Performance Processing
+
+For processing large numbers of calculations, use the batch variants which
+cross the R-Rust boundary only once instead of once per calculation:
+
+| Batch Function | Description |
+|---|---|
+| `irr_batch(values_list)` | IRR for a list of cash flow vectors |
+| `xirr_batch(values_list, dates_list)` | XIRR for a list of flows and dates |
+| `npv_batch(rate, values_list)` | NPV for a list of cash flow vectors |
+| `mirr_batch(values_list, finance_rate, reinvest_rate)` | MIRR for a list of flows |
+| `pmt_vec(rate, nper, pv, fv, pmt_at_beginning)` | PMT for vectorised inputs |
+| `price_curve(settlement, maturity, rate, ylds, redemption, frequency, basis)` | Bond prices across a yield curve |
+
+```r
+# Process 10,000 IRR calculations — one boundary crossing
+flows <- list(
+  c(-70000, 12000, 15000, 18000, 21000, 26000),
+  c(-50000, 10000, 20000, 30000, 40000)
+)
+irr_batch(flows)
+
+# Price/yield curve — 100,000 yield levels in one call
+yields <- seq(0.01, 0.15, length.out = 100000)
+prices <- price_curve("2024-01-01", "2034-01-01", 0.05, yields, 100, 2, 0)
+```
 
 ## Key Differences from Excel
 
