@@ -109,12 +109,21 @@ cross the R-Rust boundary only once instead of once per calculation:
 | `price_curve(settlement, maturity, rate, ylds, redemption, frequency, basis)` | Bond prices across a yield curve |
 
 ```r
-# Process 10,000 IRR calculations — one boundary crossing
-flows <- list(
-  c(-70000, 12000, 15000, 18000, 21000, 26000),
-  c(-50000, 10000, 20000, 30000, 40000)
+# Generate 10,000 random investment scenarios
+set.seed(42)
+flows_10k <- lapply(1:10000, function(i) {
+  investment <- -sample(50000:200000, 1)
+  returns    <- runif(6, 5000, 50000)
+  c(investment, returns)
+})
+
+# Calculate all 10,000 IRRs in one Rust call
+system.time(
+  results <- irr_batch(flows_10k)
 )
-irr_batch(flows)
+
+# Summary of results
+summary(results)
 
 # Price/yield curve — 100,000 yield levels in one call
 yields <- seq(0.01, 0.15, length.out = 100000)
