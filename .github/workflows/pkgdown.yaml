@@ -30,6 +30,14 @@ jobs:
         run: install.packages(c("remotes", "devtools"))
         shell: Rscript {0}
 
+      - name: Clear Rust cache
+        run: |
+          if (dir.exists("src/rust/target")) {
+            unlink("src/rust/target", recursive = TRUE)
+            cat("Rust cache cleared\n")
+          }
+        shell: Rscript {0}
+
       - name: Build package
         run: R CMD build --no-manual --no-build-vignettes .
 
@@ -74,6 +82,14 @@ jobs:
         run: |
           install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
                              "devtools", "desc", "roxygen2"))
+        shell: Rscript {0}
+
+      - name: Clear Rust cache
+        run: |
+          if (dir.exists("src/rust/target")) {
+            unlink("src/rust/target", recursive = TRUE)
+            cat("Rust cache cleared\n")
+          }
         shell: Rscript {0}
 
       - name: Build package
