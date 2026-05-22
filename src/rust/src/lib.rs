@@ -1131,69 +1131,248 @@ fn tbilleq(settlement: &str, maturity: &str, discount: f64) -> f64 {
     }
 }
 
+// ── Add these to the BOTTOM of src/rust/src/lib.rs ───────────────────────────
+// Place them just before the extendr_module! block.
+//
+// These batch functions accept a List of numeric vectors, cross the
+// R-Rust boundary ONCE, and return a Vec<f64> — dramatically faster
+// than calling scalar functions in a loop.
+// ─────────────────────────────────────────────────────────────────────────────
+
+use extendr_api::prelude::*;
+
+// ── Batch IRR ─────────────────────────────────────────────────────────────────
+/// Calculate IRR for a list of cash flow vectors in one call.
+///
+/// @param values_list An R list where each element is a numeric vector
+///   of cash flows. The first element must be negative (initial investment).
+/// @return Numeric vector of IRR values. Returns NA for any series where
+///   IRR cannot be found.
+/// @examples
+/// flows <- list(
+///   c(-70000, 12000, 15000, 18000, 21000, 26000),
+///   c(-50000, 10000, 20000, 30000),
+///   c(-100000, 40000, 40000, 40000)
+/// )
+/// irr_batch(flows)
+/// @export
+#[extendr]
+fn irr_batch(values_list: List) -> Vec<f64> {
+    values_list
+        .iter()
+        .map(|(_, v)| {
+            let cf: Vec<f64> = match v.as_real_vector() {
+                Some(x) => x,
+                None    => return f64::NAN,
+            };
+            if cf.len() < 2 { return f64::NAN; }
+            calc_irr(&cf)
+        })
+        .collect()
+}
+
+// ── Batch XIRR ────────────────────────────────────────────────────────────────
+/// Calculate XIRR for multiple sets of cash flows and dates in one call.
+///
+/// @param values_list An R list of numeric cash flow vectors.
+/// @param dates_list  An R list of character date vectors ("YYYY-MM-DD"),
+///   same length as values_list. Each dates element must match the length
+///   of the corresponding values element.
+/// @return Numeric vector of XIRR values. Returns NA on any error.
+/// @examples
+/// flows <- list(
+///   c(-10000, 2750, 4250, 3250, 2750),
+///   c(-50000, 20000, 25000, 20000)
+/// )
+/// dates <- list(
+///   c("2008-01-01","2008-03-01","2008-10-30","2009-02-15","2009-04-01"),
+///   c("2020-01-01","2020-06-01","2021-01-01","2021-06-01")
+/// )
+/// xirr_batch(flows, dates)
+/// @export
+#[extendr]
+fn xirr_batch(values_list: List, dates_list: List) -> Vec<f64> {
+    values_list
+        .iter()
+        .zip(dates_list.iter())
+        .map(|((_, v), (_, d))| {
+            let cf: Vec<f64> = match v.as_real_vector() {
+                Some(x) => x,
+                None    => return f64::NAN,
+            };
+            let ds: Vec<String> = match d.as_string_vector() {
+                Some(x) => x,
+                None    => return f64::NAN,
+            };
+            if cf.len() != ds.len() || cf.len() < 2 { return f64::NAN; }
+            let dates: Vec<NaiveDate> = ds.iter()
+                .filter_map(|s| NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").ok())
+                .collect();
+            if dates.len() != cf.len() { return f64::NAN; }
+            calc_xirr(&cf, &dates)
+        })
+        .collect()
+}
+
+// ── Batch NPV ─────────────────────────────────────────────────────────────────
+/// Calculate NPV for a list of cash flow vectors at a single discount rate.
+///
+/// @param rate       Single discount rate applied to all cash flow series.
+/// @param values_list An R list where each element is a numeric vector.
+/// @return Numeric vector of NPV values.
+/// @examples
+/// flows <- list(
+///   c(-10000, 3000, 4200, 6800),
+///   c(-20000, 8000, 9000, 10000)
+/// )
+/// npv_batch(0.10, flows)
+/// @export
+#[extendr]
+fn npv_batch(rate: f64, values_list: List) -> Vec<f64> {
+    values_list
+        .iter()
+        .map(|(_, v)| {
+            let cf: Vec<f64> = match v.as_real_vector() {
+                Some(x) => x,
+                None    => return f64::NAN,
+            };
+            if cf.is_empty() { return f64::NAN; }
+            npv_calc(rate, &cf)
+        })
+        .collect()
+}
+
+// ── Batch PMT ─────────────────────────────────────────────────────────────────
+/// Calculate PMT for vectorised rate, nper, and pv inputs.
+///
+/// Unlike the scalar pmt(), this accepts R numeric vectors directly and
+/// processes all combinations without sapply() overhead.
+///
+/// @param rate Numeric vector of periodic interest rates.
+/// @param nper Numeric vector of total payment periods.
+/// @param pv   Numeric vector of present values.
+/// @param fv   Numeric vector of future values. Recycled to length of rate.
+/// @param pmt_at_beginning Logical scalar. TRUE for annuity-due.
+/// @return Numeric vector of payment amounts.
+/// @examples
+/// # Compare three mortgage scenarios at once
+/// pmt_vec(c(0.03, 0.04, 0.05)/12, c(360, 360, 240), c(300000, 300000, 200000), 0, FALSE)
+/// @export
+#[extendr]
+fn pmt_vec(rate: Vec<f64>, nper: Vec<f64>, pv: Vec<f64>,
+           fv: f64, pmt_at_beginning: bool) -> Vec<f64> {
+    let n = rate.len().max(nper.len()).max(pv.len());
+    (0..n)
+        .map(|i| {
+            let r  = rate[i % rate.len()];
+            let np = nper[i % nper.len()];
+            let p  = pv[i % pv.len()];
+            calc_pmt(r, np, p, fv, pmt_at_beginning)
+        })
+        .collect()
+}
+
+// ── Batch PRICE ───────────────────────────────────────────────────────────────
+/// Calculate bond prices for a vector of yields (same bond, many yields).
+///
+/// Most useful for building price/yield curves or duration calculations
+/// where you need the price at hundreds of yield levels.
+///
+/// @param settlement Single settlement date string "YYYY-MM-DD".
+/// @param maturity   Single maturity date string "YYYY-MM-DD".
+/// @param rate       Single coupon rate.
+/// @param ylds       Numeric vector of yield values.
+/// @param redemption Single redemption value (typically 100).
+/// @param frequency  Single coupon frequency (1=annual, 2=semi, 4=quarterly).
+/// @param basis      Single day-count basis (0=US 30/360).
+/// @return Numeric vector of clean prices, one per yield in ylds.
+/// @examples
+/// # Full price/yield curve for a 10-year bond
+/// yields <- seq(0.02, 0.10, by = 0.001)
+/// prices <- price_curve("2024-01-01", "2034-01-01", 0.05, yields, 100, 2, 0)
+/// @export
+#[extendr]
+fn price_curve(settlement: &str, maturity: &str, rate: f64,
+               ylds: Vec<f64>, redemption: f64,
+               frequency: f64, basis: f64) -> Vec<f64> {
+    // Parse dates once — outside the loop
+    let settle = match NaiveDate::parse_from_str(settlement, "%Y-%m-%d") {
+        Ok(d)  => d,
+        Err(_) => return vec![f64::NAN; ylds.len()],
+    };
+    let mat = match NaiveDate::parse_from_str(maturity, "%Y-%m-%d") {
+        Ok(d)  => d,
+        Err(_) => return vec![f64::NAN; ylds.len()],
+    };
+    let freq  = frequency as i32;
+    let bas   = basis as i32;
+
+    ylds.iter()
+        .map(|&y| calc_price(settle, mat, rate, y, redemption, freq, bas))
+        .collect()
+}
+
+// ── Batch MIRR ────────────────────────────────────────────────────────────────
+/// Calculate MIRR for a list of cash flow vectors.
+///
+/// @param values_list  An R list of numeric cash flow vectors.
+/// @param finance_rate Single financing rate applied to all series.
+/// @param reinvest_rate Single reinvestment rate applied to all series.
+/// @return Numeric vector of MIRR values.
+/// @examples
+/// flows <- list(
+///   c(-120000, 39000, 30000, 21000, 37000, 46000),
+///   c(-80000,  20000, 25000, 30000, 35000)
+/// )
+/// mirr_batch(flows, 0.10, 0.12)
+/// @export
+#[extendr]
+fn mirr_batch(values_list: List, finance_rate: f64,
+              reinvest_rate: f64) -> Vec<f64> {
+    values_list
+        .iter()
+        .map(|(_, v)| {
+            let cf: Vec<f64> = match v.as_real_vector() {
+                Some(x) => x,
+                None    => return f64::NAN,
+            };
+            if cf.len() < 2 { return f64::NAN; }
+            calc_mirr(&cf, finance_rate, reinvest_rate)
+        })
+        .collect()
+}
+
 
 // ── Register all 55 functions with R ─────────────────────────────────────────
 extendr_module! {
     mod financial_functions;
-    // Annuity
-    fn fv;
-    fn pv;
-    fn pmt;
-    fn ipmt;
-    fn ppmt;
-    fn cumipmt;
-    fn cumprinc;
-    fn nper;
-    fn rate;
-    fn ispmt;
-    // Cash flows
-    fn npv;
-    fn irr;
-    fn mirr;
-    fn xnpv;
-    fn xirr;
-    // Depreciation
-    fn sln;
-    fn syd;
-    fn db;
-    fn ddb;
-    fn vdb;
-    fn amorlinc;
-    fn amordegrc;
-    // Coupon dates
-    fn coupdaybs;
-    fn coupdays;
-    fn coupdaysnc;
-    fn coupncd;
-    fn couppcd;
-    fn coupnum;
-    // Bonds
-    fn price;
-    fn pricedisc;
-    fn pricemat;
-    fn yield_;
-    fn yielddisc;
-    fn yieldmat;
-    fn disc;
-    fn intrate;
-    fn received;
-    fn duration;
-    fn mduration;
-    fn accrint;
-    fn accrintm;
-    fn oddfprice;
-    fn oddfyield;
-    fn oddlprice;
-    fn oddlyield;
-    // Misc
-    fn effect;
-    fn nominal;
-    fn dollarde;
-    fn dollarfr;
-    fn fvschedule;
-    fn rri;
-    fn pduration;
-    fn tbillprice;
-    fn tbillyield;
-    fn tbilleq;
+    // ── Annuity ──────────────────────────────────────────────
+    fn fv; fn pv; fn pmt; fn ipmt; fn ppmt;
+    fn cumipmt; fn cumprinc; fn nper; fn rate; fn ispmt;
+    // ── Cash Flows ───────────────────────────────────────────
+    fn npv; fn irr; fn mirr; fn xnpv; fn xirr;
+    // ── Depreciation ─────────────────────────────────────────
+    fn sln; fn syd; fn db; fn ddb; fn vdb;
+    fn amorlinc; fn amordegrc;
+    // ── Coupon Dates ─────────────────────────────────────────
+    fn coupdaybs; fn coupdays; fn coupdaysnc;
+    fn coupncd; fn couppcd; fn coupnum;
+    // ── Bonds & Securities ───────────────────────────────────
+    fn price; fn pricedisc; fn pricemat;
+    fn yield_; fn yielddisc; fn yieldmat;
+    fn disc; fn intrate; fn received;
+    fn duration; fn mduration;
+    fn accrint; fn accrintm;
+    fn oddfprice; fn oddfyield; fn oddlprice; fn oddlyield;
+    // ── Miscellaneous ────────────────────────────────────────
+    fn effect; fn nominal; fn dollarde; fn dollarfr;
+    fn fvschedule; fn rri; fn pduration;
+    fn tbillprice; fn tbillyield; fn tbilleq;
+    // ── Batch / Vectorised (NEW) ─────────────────────────────
+    fn irr_batch;
+    fn xirr_batch;
+    fn npv_batch;
+    fn pmt_vec;
+    fn price_curve;
+    fn mirr_batch;
 }

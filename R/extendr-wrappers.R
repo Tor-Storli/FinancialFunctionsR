@@ -223,3 +223,30 @@ tbillyield <- function(settlement, maturity, pr) .Call("wrap__tbillyield", settl
 #' Treasury Bill Bond-Equivalent Yield
 #' @export
 tbilleq <- function(settlement, maturity, discount) .Call("wrap__tbilleq", settlement, maturity, discount)
+
+# ── Add these to the BOTTOM of R/extendr-wrappers.R ─────────────────────────
+
+#' Batch IRR — Internal Rate of Return for Multiple Cash Flow Series
+#' @export
+irr_batch <- function(values_list) .Call("wrap__irr_batch", values_list)
+
+#' Batch XIRR — IRR with Irregular Dates for Multiple Series
+#' @export
+xirr_batch <- function(values_list, dates_list) .Call("wrap__xirr_batch", values_list, dates_list)
+
+#' Batch NPV — Net Present Value for Multiple Cash Flow Series
+#' @export
+npv_batch <- function(rate, values_list) .Call("wrap__npv_batch", rate, values_list)
+
+#' Vectorised PMT — Payment for Multiple Loan Scenarios
+#' @export
+pmt_vec <- function(rate, nper, pv, fv, pmt_at_beginning) .Call("wrap__pmt_vec", rate, nper, pv, fv, pmt_at_beginning)
+
+#' Price Curve — Bond Price at Multiple Yield Levels
+#' @export
+price_curve <- function(settlement, maturity, rate, ylds, redemption, frequency, basis) .Call("wrap__price_curve", settlement, maturity, rate, ylds, redemption, frequency, basis)
+
+#' Batch MIRR — Modified IRR for Multiple Cash Flow Series
+#' @export
+mirr_batch <- function(values_list, finance_rate, reinvest_rate) .Call("wrap__mirr_batch", values_list, finance_rate, reinvest_rate)
+
