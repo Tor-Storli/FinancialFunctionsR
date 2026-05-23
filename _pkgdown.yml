@@ -13,7 +13,7 @@ home:
 
 navbar:
   structure:
-    left:  [intro, reference, articles, tutorial]
+    left:  [intro, reference, articles, tutorial, benchmark]
     right: [github]
   components:
     intro:
@@ -22,6 +22,9 @@ navbar:
     tutorial:
       text: "Tutorial"
       href: articles/FinancialFunctions_Tutorial.html
+    benchmark:
+      text: "Speed Benchmark"
+      href: articles/speed_benchmark.html
     github:
       icon: fab fa-github
       href: https://github.com/Tor-Storli/FinancialFunctionsR
