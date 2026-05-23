@@ -1,5 +1,4 @@
 ---
----
 title: "FinancialFunctions — Speed Benchmark"
 subtitle: "Rust vs Pure R: How Fast Is Native Code?"
 author: "Tor Storli and <br> Claude Sonnet 4.6 (Anthropic's AI assistant)"
@@ -10,6 +9,7 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
+
 format:
   html:
     theme: cosmo
