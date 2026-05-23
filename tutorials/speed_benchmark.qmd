@@ -484,7 +484,7 @@ FROM results;
 ```
 
 ```{r duckdb-table, echo=FALSE}
-# Update these with your actual CLI .timer results
+# Update with the actual CLI .timer results
 duckdb_bond_time <- 0.249    # from bond pricing query
 duckdb_irr_time  <- 7.750    # from 1M IRR query — update this!
 
@@ -571,50 +571,102 @@ tibble(
   )
 ```
 
----
+### DuckDB Table Query — Eliminating CSV Overhead
 
-## Summary
+When data lives in a DuckDB table with pre-built CSV strings, the query
+skips the `::VARCHAR` casting step entirely. Run this in the CLI after
+creating the table with the setup script:
 
-```{r summary-table, echo=FALSE}
+```sql
+-- From pre-populated cashflows_1m table
+.timer on
+SELECT
+    COUNT(*)                             AS total_calculations,
+    COUNT(irr_result)                    AS successful,
+    ROUND(MIN(irr_result) * 100, 2)      AS min_irr_pct,
+    ROUND(MAX(irr_result) * 100, 2)      AS max_irr_pct,
+    ROUND(AVG(irr_result) * 100, 2)      AS avg_irr_pct
+FROM (
+    SELECT irr(cashflow_csv) AS irr_result
+    FROM cashflows_1m
+);
+```
+
+```{r duckdb-table-query, echo=FALSE}
+# Update with the actual CLI .timer results
+duckdb_cte_time   <- 7.750   # from CTE query (random() + casting)
+duckdb_table_time <- 1.235   # from table query (pre-built CSV) — update!
+
 tibble(
-  Takeaway = c(
-    "1M IRR batch vs pure R",
-    "100k bond prices batch vs pure R",
-    "sapply() overhead at 10k hides Rust advantage",
-    "DuckDB: zero boundary cost",
-    "All methods numerically identical"
+  Method  = c(
+    "R package — irr_batch() 1M",
+    "DuckDB — table query (pre-built CSV)",
+    "DuckDB — CTE query (random + casting)",
+    "Pure R — sapply() 1M"
   ),
-  Result = c(
-    sprintf("%.1fx faster — irr_batch() in %.2fs vs pure R in %.2fs",
-            speedup_batch, t_batch_large, t_pure_r_large),
-    sprintf("%.1fx faster — price_curve() in %.3fs vs pure R in %.3fs",
-            bond_speedup, t_bond_rust, t_bond_r),
-    "sapply costs ~47µs/call; Rust IRR costs ~1µs — overhead dominates",
-    "Same Rust math called natively — fastest possible execution",
-    sprintf("Max IRR diff: %.2e | Max price diff: %.2e",
-            max_diff, max_price_diff)
+  Engine  = c("Rust via R", "Rust native", "Rust native", "R"),
+  N       = c(1000000L, 1000000L, 1000000L, 1000000L),
+  Time_s  = c(t_batch_large, duckdb_table_time,
+               duckdb_cte_time, t_pure_r_large),
+  Calc_sec = round(1000000 /
+               c(t_batch_large, duckdb_table_time,
+                 duckdb_cte_time, t_pure_r_large), 0),
+  Note    = c(
+    "One boundary crossing, native vectors",
+    "No casting — CSV pre-built at insert time",
+    "Includes random() + ::VARCHAR casting overhead",
+    "1M sapply() calls, full R overhead"
   )
 ) |>
   gt() |>
-  tab_header(title = md("**Key Takeaways**")) |>
-  cols_label(Takeaway = "Finding", Result = "Result") |>
+  tab_header(
+    title    = md("**DuckDB Table vs CTE — Does Pre-building CSV Help?**"),
+    subtitle = md("1,000,000 IRR calculations — eliminating query-time overhead")
+  ) |>
+  cols_label(
+    Method   = "Method",
+    Engine   = "Engine",
+    N        = "Calculations",
+    Time_s   = "Time (s)",
+    Calc_sec = "Calc / sec",
+    Note     = "Key Difference"
+  ) |>
+  fmt_number(columns = Time_s,   decimals = 3) |>
+  fmt_number(columns = N,        sep_mark = ",", decimals = 0) |>
+  fmt_number(columns = Calc_sec, sep_mark = ",", decimals = 0) |>
   tab_style(
-    style     = cell_text(weight = "bold"),
-    locations = cells_body(columns = Takeaway)
+    style     = list(cell_fill(color = "#e8f5e9"),
+                     cell_text(weight = "bold", color = "#1b5e20")),
+    locations = cells_body(rows = Time_s == min(Time_s))
   ) |>
   tab_style(
-    style     = list(cell_fill(color = "#0f3460"),
+    style     = cell_fill(color = "#e3f2fd"),
+    locations = cells_body(rows = Engine == "Rust via R")
+  ) |>
+  tab_style(
+    style     = list(cell_fill(color = "#217346"),
                      cell_text(color = "white", weight = "bold")),
-    locations = cells_title(groups = "title")
+    locations = cells_title(groups = c("title", "subtitle"))
   ) |>
   tab_style(
-    style     = list(cell_fill(color = "#16213e"),
+    style     = list(cell_fill(color = "#1a5c38"),
                      cell_text(color = "white", weight = "bold")),
     locations = cells_column_labels()
+  ) |>
+  tab_footnote(
+    footnote  = md(
+      "Here we update `duckdb_table_time` with the actual CLI `.timer` result"),
+    locations = cells_body(columns = Time_s, rows = 2)
+  ) |>
+  tab_source_note(
+    md("Green = fastest &nbsp;|&nbsp; Blue = R batch &nbsp;|&nbsp;   
+       **DuckDB wins when data is already stored, R batch wins for interactive calculations.**")
   ) |>
   tab_options(
     table.width = pct(100),
     row.striping.include_table_body = TRUE,
     row.striping.background_color   = "#f8faff"
   )
+
 ```
+
