@@ -81,9 +81,9 @@ jobs:
           targets: x86_64-pc-windows-gnu
 
       - name: Install R dependencies
-        run: |
-          install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
-                             "devtools", "desc", "roxygen2"))
+        run:  install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
+                       "devtools", "desc", "roxygen2", "gt", "dplyr",
+                       "tibble"))
         shell: Rscript {0}
 
       - name: Clear Rust cache
