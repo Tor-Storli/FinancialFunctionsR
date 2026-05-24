@@ -61,13 +61,15 @@ library(FinancialFunctions)
 The 55 functions are organised into six groups:
 
 | Group | Description | Count |
-|-------|-------------|------:|
-| 💰 Annuity | Loan payments, present/future values, interest rates | 10 |
-| 📈 Cash Flows | NPV, IRR and irregular-date variants | 5 |
-| 🏭 Depreciation | Asset write-down under various accounting methods | 7 |
-| 🗓️ Coupon Dates | Bond coupon period date arithmetic | 6 |
-| 🏦 Bonds & Securities | Pricing, yields, duration, accrued interest | 13 |
-| 🔧 Miscellaneous | Rate conversions, T-bills, dollar notation, growth | 14 |
+|---|---|---|
+| Annuity | Loan payments, present/future values, rates | 10 |
+| Cash Flows | NPV, IRR and irregular-date variants | 5 |
+| Depreciation | Asset write-down methods | 7 |
+| Coupon Dates | Bond coupon period date arithmetic | 6 |
+| Bonds & Securities | Pricing, yields, duration, accrued interest | 13 |
+| Miscellaneous | Rate conversions, T-bills, dollar notation | 14 |
+| **Batch / Vectorised** | **High-performance variants for large datasets** | **6** |
+| **Total** | | **61** |
 
 ---
 
@@ -1083,6 +1085,93 @@ data.frame(
 ```
 
 ---
+
+## Batch Functions — High Performance Processing
+
+For large datasets, calling scalar functions inside `sapply()` pays R's
+function-call overhead (~47 microseconds) on every iteration. The batch
+variants cross the R-Rust boundary **only once** for the entire dataset —
+dramatically faster for thousands of calculations.
+
+| Batch Function | Scalar Equivalent | Description |
+|---|---|---|
+| `irr_batch(values_list)` | `irr()` | IRR for a list of cash flow vectors |
+| `xirr_batch(values_list, dates_list)` | `xirr()` | XIRR for a list of flows and dates |
+| `npv_batch(rate, values_list)` | `npv()` | NPV for a list of cash flow vectors |
+| `mirr_batch(values_list, finance_rate, reinvest_rate)` | `mirr()` | MIRR for a list of flows |
+| `pmt_vec(rate, nper, pv, fv, pmt_at_beginning)` | `pmt()` | PMT for vectorised inputs |
+| `price_curve(settlement, maturity, rate, ylds, redemption, frequency, basis)` | `price()` | Bond prices across a yield curve |
+
+### IRR for Multiple Projects
+
+```{r eval=FALSE}
+# Five investment projects evaluated in one Rust call
+projects <- list(
+  ProjectA = c(-100000, 30000, 35000, 40000, 45000),
+  ProjectB = c(-200000, 50000, 60000, 70000, 80000, 90000),
+  ProjectC = c(-50000,  20000, 20000, 20000),
+  ProjectD = c(-150000, 40000, 45000, 50000, 55000, 60000),
+  ProjectE = c(-75000,  25000, 30000, 35000, 40000)
+)
+irr_batch(projects)
+```
+
+### NPV Sensitivity Analysis
+
+```{r eval=FALSE}
+# Same projects at different hurdle rates — one call each
+npv_batch(0.08, projects)
+npv_batch(0.12, projects)
+```
+
+### Bond Price/Yield Curve
+
+```{r eval=FALSE}
+# 100,000 yield levels — one Rust call
+yields <- seq(0.02, 0.10, length.out = 100000)
+prices <- price_curve(
+  settlement = "2024-01-01",
+  maturity   = "2034-01-01",
+  rate       = 0.05,
+  ylds       = yields,
+  redemption = 100,
+  frequency  = 2,
+  basis      = 0
+)
+
+data.frame(
+  Yield = round(yields[c(1, 25000, 50000, 75000, 100000)], 4),
+  Price = round(prices[c(1, 25000, 50000, 75000, 100000)], 4)
+)
+```
+
+### Compare Multiple Mortgage Scenarios
+
+```{r eval=FALSE}
+# pmt_vec accepts vectors — no sapply needed
+pmt_vec(
+  rate             = c(0.03, 0.035, 0.04, 0.045) / 12,
+  nper             = c(180, 240, 300, 360),
+  pv               = c(200000, 300000, 400000, 500000),
+  fv               = 0,
+  pmt_at_beginning = FALSE
+)
+```
+
+### Speed Comparison
+
+```{r eval=FALSE}
+# Generate 10,000 random investment scenarios
+set.seed(42)
+flows <- lapply(1:10000, function(i)
+  c(-sample(50000:200000, 1), runif(6, 5000, 50000)))
+
+# Scalar — pays R overhead 10,000 times
+system.time(sapply(flows, irr))
+
+# Batch — pays R overhead once
+system.time(irr_batch(flows))
+```
 
 ## Key Differences from Excel
 

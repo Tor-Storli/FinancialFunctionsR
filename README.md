@@ -6,10 +6,10 @@
 [![R-CMD-check](https://github.com/Tor-Storli/FinancialFunctionsR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Tor-Storli/FinancialFunctionsR/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-**FinancialFunctions** is an R package providing 55 Excel-compatible financial
-functions implemented in Rust via [extendr](https://extendr.github.io). All
-functions match Excel output exactly and handle invalid inputs gracefully by
-returning `NA` rather than throwing errors.
+**FinancialFunctions** provides 55 Excel-compatible financial functions 
+implemented in Rust via [extendr](https://extendr.github.io), plus 
+6 batch variants for processing large datasets efficiently. All scalar 
+functions match Excel output exactly and return `NA` on invalid input.
 
 ## Installation
 

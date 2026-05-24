@@ -4,18 +4,14 @@ Version: 0.1.0
 Authors@R: 
     person("Tor", "Storli", email = "your.email@example.com",
            role = c("aut", "cre"))
-Description: Provides 55 Excel-compatible financial functions implemented in
-    Rust for high performance. Functions cover annuity calculations (FV, PV,
-    PMT, IPMT, PPMT, CUMIPMT, CUMPRINC, NPER, RATE, ISPMT), cash flow
-    analysis (NPV, IRR, MIRR, XNPV, XIRR), depreciation (SLN, SYD, DB, DDB,
-    VDB, AMORLINC, AMORDEGRC), coupon date calculations (COUPDAYBS, COUPDAYS,
-    COUPDAYSNC, COUPNCD, COUPPCD, COUPNUM), bond and security pricing (PRICE,
-    PRICEDISC, PRICEMAT, YIELD, YIELDDISC, YIELDMAT, DISC, INTRATE, RECEIVED,
-    DURATION, MDURATION, ACCRINT, ACCRINTM), and miscellaneous functions
-    (EFFECT, NOMINAL, DOLLARDE, DOLLARFR, FVSCHEDULE, RRI, PDURATION,
-    TBILLPRICE, TBILLYIELD, TBILLEQ, ODDFPRICE, ODDFYIELD, ODDLPRICE,
-    ODDLYIELD). All functions match Excel output and handle invalid inputs
-    gracefully by returning NA.
+Description: Provides 55 Excel-compatible financial functions implemented
+    in Rust via extendr for high-performance calculations directly in R.
+    Functions cover annuity calculations, cash flow analysis (NPV, IRR,
+    XIRR), asset depreciation, bond pricing, coupon date arithmetic, and
+    miscellaneous financial utilities. All functions match Excel output
+    exactly and return NA on invalid input rather than throwing errors.
+    Batch variants are included for processing large datasets efficiently
+    with a single Rust call.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
