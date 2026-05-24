@@ -584,6 +584,50 @@ When data lives in a DuckDB table with pre-built CSV strings, the query
 skips the `::VARCHAR` casting step entirely. Run this in the CLI after
 creating the table with the setup script:
 
+#### Step 1 — Create and Populate the Table (Run Once)
+
+```sql
+-- Run this ONCE to create the persistent table
+-- duckdb -unsigned mydb.duckdb
+-- LOAD 'target/release/financial_functions.duckdb_extension';
+
+-- Create table with pre-built CSV strings
+CREATE OR REPLACE TABLE cashflows_1m AS
+WITH raw AS (
+    SELECT
+        i,
+        (-50000 - (random() * 150000))::DOUBLE AS cf0,
+        (5000 + random() * 45000)::DOUBLE       AS cf1,
+        (5000 + random() * 45000)::DOUBLE       AS cf2,
+        (5000 + random() * 45000)::DOUBLE       AS cf3,
+        (5000 + random() * 45000)::DOUBLE       AS cf4,
+        (5000 + random() * 45000)::DOUBLE       AS cf5,
+        (5000 + random() * 45000)::DOUBLE       AS cf6
+    FROM generate_series(1, 1000000) AS t(i)
+)
+SELECT
+    i,
+    cf0, cf1, cf2, cf3, cf4, cf5, cf6,
+    -- Pre-build the CSV string at insert time — not at query time
+    cf0::VARCHAR || ',' ||
+    cf1::VARCHAR || ',' ||
+    cf2::VARCHAR || ',' ||
+    cf3::VARCHAR || ',' ||
+    cf4::VARCHAR || ',' ||
+    cf5::VARCHAR || ',' ||
+    cf6::VARCHAR AS cashflow_csv
+FROM raw;
+
+-- Verify
+SELECT COUNT(*) AS row_count FROM cashflows_1m;
+-- Should show: 1,000,000
+
+```
+
+#### Step 2 — Benchmark Query From Table
+Now run the IRR query reading from the pre-built table.    
+The CSV strings are already built — no casting at query time:
+
 ```sql
 -- From pre-populated cashflows_1m table
 .timer on
@@ -597,6 +641,23 @@ FROM (
     SELECT irr(cashflow_csv) AS irr_result
     FROM cashflows_1m
 );
+```
+
+#### Step 3 — Also Test the Numeric Columns Directly   
+If DuckDB IRR ever gets a native numeric array version, this would be the fastest:
+
+```sql
+.timer on
+
+-- Query using numeric columns directly (no CSV parsing at all)
+-- This shows how fast it could be with a native array IRR function
+SELECT
+    COUNT(*)  AS total_rows,
+    -- Pre-compute NPV at a test rate to verify data integrity
+    ROUND(AVG(cf0 + cf1 + cf2 + cf3 + cf4 + cf5 + cf6), 2) AS avg_net_flow,
+    ROUND(AVG(cf0), 2) AS avg_investment,
+    ROUND(AVG(cf1 + cf2 + cf3 + cf4 + cf5 + cf6), 2) AS avg_returns
+FROM cashflows_1m;
 ```
 
 ```{r duckdb-table-query, echo=FALSE}
