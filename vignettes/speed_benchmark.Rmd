@@ -87,7 +87,7 @@ is where Rust truly shines.
 
 ## Benchmark 1 — IRR: Scalar Comparison (10,000)
 
-At 10,000 calculations the `sapply()` overhead (~47µs per call) dominates
+At 10,000 calculations the `sapply()` overhead (~47 microseconds per call) dominates
 both Rust and R — making them appear similar. This is the **honest** comparison
 that shows why calling Rust one row at a time is not the right approach.
 
