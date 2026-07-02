@@ -250,3 +250,8 @@ price_curve <- function(settlement, maturity, rate, ylds, redemption, frequency,
 #' @export
 mirr_batch <- function(values_list, finance_rate, reinvest_rate) .Call("wrap__mirr_batch", values_list, finance_rate, reinvest_rate)
 
+#' Bond Convexity
+#' @export
+convexity <- function(settlement, maturity, coupon, yld, freq) {
+  .Call("wrap__convexity", settlement, maturity, coupon, yld, freq)
+}

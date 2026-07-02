@@ -8,7 +8,7 @@
 #![allow(unused_imports, dead_code)]
 
 use extendr_api::prelude::*;
-use chrono::NaiveDate;
+use chrono::{NaiveDate, Datelike};
 
 mod helpers;
 mod errors;      // ← add this
@@ -1342,6 +1342,67 @@ fn mirr_batch(values_list: List, finance_rate: f64,
         .collect()
 }
 
+/// Calculate bond convexity
+/// settlement: date string "YYYY-MM-DD"
+/// maturity:   date string "YYYY-MM-DD"
+/// coupon:     annual coupon rate
+/// yld:        annual yield
+/// freq:       compounding frequency (1, 2, or 4)
+#[extendr]
+fn convexity(settlement: &str, maturity: &str,
+             coupon: f64, yld: f64, freq: f64) -> f64 {
+    let settle = match NaiveDate::parse_from_str(settlement, "%Y-%m-%d") {
+        Ok(d)  => d,
+        Err(_) => return f64::NAN,
+    };
+    let mat = match NaiveDate::parse_from_str(maturity, "%Y-%m-%d") {
+        Ok(d)  => d,
+        Err(_) => return f64::NAN,
+    };
+    if settle >= mat { return f64::NAN; }
+
+    let k          = freq as f64;
+    let step_months = (12.0 / k) as i32;
+    let coupon_pmt  = 100.0 * coupon / k;
+
+    // Build coupon schedule walking back from maturity
+    let mut dates: Vec<NaiveDate> = Vec::new();
+    let mut d = mat;
+    while d > settle {
+        dates.push(d);
+        // subtract step_months
+        let total = d.month() as i32 - 1 - step_months;
+        let year  = d.year() + total.div_euclid(12);
+        let month = (total.rem_euclid(12) + 1) as u32;
+        let max_day = {
+            let next = if month == 12 {
+                NaiveDate::from_ymd_opt(year + 1, 1, 1)
+            } else {
+                NaiveDate::from_ymd_opt(year, month + 1, 1)
+            };
+            (next.unwrap() - chrono::Duration::days(1)).day()
+        };
+        d = NaiveDate::from_ymd_opt(year, month, d.day().min(max_day)).unwrap();
+    }
+    dates.reverse();
+
+    let n = dates.len();
+    if n == 0 { return f64::NAN; }
+
+    let mut price      = 0.0f64;
+    let mut convex_sum = 0.0f64;
+
+    for (idx, &cd) in dates.iter().enumerate() {
+        let t    = (cd - settle).num_days() as f64 / (365.25 / k);
+        let cf   = if idx == n - 1 { coupon_pmt + 100.0 } else { coupon_pmt };
+        let disc = (1.0 + yld / k).powf(t);
+        price      += cf / disc;
+        convex_sum += cf * t * (t + 1.0) / disc;
+    }
+
+    if price.abs() < 1e-12 { return f64::NAN; }
+    convex_sum / (price * (1.0 + yld / k).powi(2) * k * k)
+}
 
 // ── Register all 55 functions with R ─────────────────────────────────────────
 extendr_module! {
@@ -1364,6 +1425,7 @@ extendr_module! {
     fn duration; fn mduration;
     fn accrint; fn accrintm;
     fn oddfprice; fn oddfyield; fn oddlprice; fn oddlyield;
+    fn convexity;
     // ── Miscellaneous ────────────────────────────────────────
     fn effect; fn nominal; fn dollarde; fn dollarfr;
     fn fvschedule; fn rri; fn pduration;
