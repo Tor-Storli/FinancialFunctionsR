@@ -27,9 +27,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install R dependencies
-        run:  install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
-                       "devtools", "desc", "roxygen2", "gt", "dplyr",
-                       "tibble"))
+        run: install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
+          "devtools", "desc", "roxygen2", "gt", "dplyr",
+          "tibble"))
         shell: Rscript {0}
 
       - name: Clear Rust cache
@@ -73,7 +73,7 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
-          rtools-version: '44'
+          rtools-version: "44"
 
       - name: Install Rust with GNU target
         uses: dtolnay/rust-toolchain@stable
@@ -81,9 +81,9 @@ jobs:
           targets: x86_64-pc-windows-gnu
 
       - name: Install R dependencies
-        run:  install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
-                       "devtools", "desc", "roxygen2", "gt", "dplyr",
-                       "tibble"))
+        run: install.packages(c("pkgdown", "remotes", "rmarkdown", "knitr",
+          "devtools", "desc", "roxygen2", "gt", "dplyr",
+          "tibble"))
         shell: Rscript {0}
 
       - name: Clear Rust cache
@@ -128,6 +128,7 @@ jobs:
           name: pkgdown-site
           path: docs/
           retention-days: 1
+          overwrite: true
 
   # ── Deploy to GitHub Pages from Ubuntu ───────────────────────────────────
   deploy:
